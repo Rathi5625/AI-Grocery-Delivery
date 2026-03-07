@@ -1,0 +1,15 @@
+# Node
+node_modules/
+
+# Java / Maven
+target/
+
+# Logs
+*.log
+
+# Environment
+.env
+
+# OS files
+.DS_Store
+Thumbs.db
