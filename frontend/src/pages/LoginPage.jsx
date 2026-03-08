@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import { FiEye, FiEyeOff } from 'react-icons/fi';
 
 export default function LoginPage() {
     const { login } = useAuth();
@@ -10,10 +11,19 @@ export default function LoginPage() {
     const [form, setForm] = useState({ email: '', password: '' });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [rememberMe, setRememberMe] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+
+        // Basic form validation
+        if (!form.email || !form.password) {
+            setError('Please fill in all fields');
+            return;
+        }
+
         setLoading(true);
         try {
             await login(form.email, form.password);
@@ -50,22 +60,35 @@ export default function LoginPage() {
                     <h1 className="auth-form__title">Welcome back</h1>
                     <p className="auth-form__subtitle">Sign in to your account to continue</p>
 
-                    {error && (
-                        <motion.div className="auth-form__alert" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-                            {error}
-                        </motion.div>
-                    )}
+                    <AnimatePresence>
+                        {error && (
+                            <motion.div className="auth-form__alert" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }}>
+                                {error}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
-                    <div className="form-group">
-                        <label htmlFor="email">Email</label>
-                        <input type="email" id="email" className="form-input" placeholder="you@example.com"
+                    <div className="form-floating">
+                        <input type="email" id="email" placeholder=" "
                             value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
+                        <label htmlFor="email">Email address</label>
                     </div>
 
-                    <div className="form-group">
-                        <label htmlFor="password">Password</label>
-                        <input type="password" id="password" className="form-input" placeholder="••••••••"
+                    <div className="form-floating">
+                        <input type={showPassword ? 'text' : 'password'} id="password" placeholder=" "
                             value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
+                        <label htmlFor="password">Password</label>
+                        <button type="button" className="password-toggle" onClick={() => setShowPassword(!showPassword)}>
+                            {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
+                        </button>
+                    </div>
+
+                    <div className="checkbox-group" style={{ justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <input type="checkbox" id="rememberMe" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
+                            <label htmlFor="rememberMe">Remember me</label>
+                        </div>
+                        <a href="#" style={{ fontSize: 'var(--text-sm)', color: 'var(--primary)', fontWeight: 500 }}>Forgot password?</a>
                     </div>
 
                     <motion.button

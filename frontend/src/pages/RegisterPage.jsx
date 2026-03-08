@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import { FiEye, FiEyeOff } from 'react-icons/fi';
 
 export default function RegisterPage() {
     const { signup } = useAuth();
@@ -10,10 +11,22 @@ export default function RegisterPage() {
     const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', phone: '' });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+
+        if (!form.firstName || !form.lastName || !form.email || !form.password) {
+            setError('Please fill in all required fields');
+            return;
+        }
+
+        if (form.password.length < 8) {
+            setError('Password must be at least 8 characters long');
+            return;
+        }
+
         setLoading(true);
         try {
             await signup(form);
@@ -38,41 +51,46 @@ export default function RegisterPage() {
                     <h1 className="auth-form__title">Create account</h1>
                     <p className="auth-form__subtitle">Start your sustainable shopping journey</p>
 
-                    {error && (
-                        <motion.div className="auth-form__alert" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-                            {error}
-                        </motion.div>
-                    )}
+                    <AnimatePresence>
+                        {error && (
+                            <motion.div className="auth-form__alert" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }}>
+                                {error}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
-                        <div className="form-group">
-                            <label htmlFor="firstName">First Name</label>
-                            <input type="text" id="firstName" className="form-input" placeholder="First name"
+                        <div className="form-floating" style={{ marginBottom: 0 }}>
+                            <input type="text" id="firstName" placeholder=" "
                                 value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} required />
+                            <label htmlFor="firstName">First Name</label>
                         </div>
-                        <div className="form-group">
-                            <label htmlFor="lastName">Last Name</label>
-                            <input type="text" id="lastName" className="form-input" placeholder="Last name"
+                        <div className="form-floating" style={{ marginBottom: 0 }}>
+                            <input type="text" id="lastName" placeholder=" "
                                 value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} required />
+                            <label htmlFor="lastName">Last Name</label>
                         </div>
                     </div>
 
-                    <div className="form-group">
-                        <label htmlFor="reg-email">Email</label>
-                        <input type="email" id="reg-email" className="form-input" placeholder="you@example.com"
+                    <div className="form-floating" style={{ marginTop: 'var(--space-4)' }}>
+                        <input type="email" id="reg-email" placeholder=" "
                             value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
+                        <label htmlFor="reg-email">Email address</label>
                     </div>
 
-                    <div className="form-group">
-                        <label htmlFor="reg-password">Password</label>
-                        <input type="password" id="reg-password" className="form-input" placeholder="Min 8 characters"
+                    <div className="form-floating">
+                        <input type={showPassword ? 'text' : 'password'} id="reg-password" placeholder=" "
                             value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required minLength={8} />
+                        <label htmlFor="reg-password">Password (Min 8 characters)</label>
+                        <button type="button" className="password-toggle" onClick={() => setShowPassword(!showPassword)}>
+                            {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
+                        </button>
                     </div>
 
-                    <div className="form-group">
-                        <label htmlFor="phone">Phone <span style={{ color: 'var(--gray-400)', fontWeight: 400, textTransform: 'none' }}>(optional)</span></label>
-                        <input type="tel" id="phone" className="form-input" placeholder="+91 98765 43210"
+                    <div className="form-floating">
+                        <input type="tel" id="phone" placeholder=" "
                             value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+                        <label htmlFor="phone">Phone (optional)</label>
                     </div>
 
                     <motion.button

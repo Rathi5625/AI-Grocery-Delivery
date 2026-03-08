@@ -1941,3 +1941,100 @@ select {
     font-size: var(--text-2xl);
   }
 }
+
+/* ================================================================
+   auth upgrades: FLOATING LABELS & TOGGLE
+   ================================================================ */
+.form-floating {
+  position: relative;
+  margin-bottom: var(--space-4);
+}
+
+.form-floating input {
+  width: 100%;
+  padding: 24px 16px 8px 16px;
+  font-size: var(--text-base);
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--r-lg);
+  background: var(--bg-input);
+  transition: all var(--dur-normal) var(--ease);
+}
+
+.form-floating input:focus,
+.form-floating input:not(:placeholder-shown) {
+  border-color: var(--primary);
+  background: #fff;
+  outline: none;
+}
+
+.form-floating label {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  font-size: var(--text-base);
+  color: var(--gray-500);
+  transition: all var(--dur-normal) var(--ease);
+  pointer-events: none;
+}
+
+.form-floating input:focus~label,
+.form-floating input:not(:placeholder-shown)~label {
+  top: 6px;
+  left: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.password-toggle {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--gray-500);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.password-toggle:hover {
+  color: var(--primary);
+}
+
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: var(--space-4);
+}
+
+.checkbox-group input {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+}
+
+.checkbox-group label {
+  font-size: var(--text-sm);
+  color: var(--gray-700);
+  cursor: pointer;
+}
+
+/* ================================================================
+   STOCK ALERTS — pulse animation
+   ================================================================ */
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
