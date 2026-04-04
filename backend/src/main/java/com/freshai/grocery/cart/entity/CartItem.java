@@ -7,7 +7,12 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "cart_items")
+@Table(
+    name = "cart_items",
+    uniqueConstraints = @UniqueConstraint(
+        name = "uq_cart_item", columnNames = {"cart_id", "product_id"}
+    )
+)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -33,11 +38,20 @@ public class CartItem {
     @Column(name = "unit_price", nullable = false, precision = 10, scale = 2)
     private BigDecimal unitPrice;
 
-    @Column(name = "added_at")
-    private LocalDateTime addedAt;
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
     @PrePersist
     protected void onCreate() {
-        addedAt = LocalDateTime.now();
+        createdAt = LocalDateTime.now();
+        updatedAt  = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 }

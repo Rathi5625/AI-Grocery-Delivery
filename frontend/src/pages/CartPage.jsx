@@ -22,7 +22,7 @@ export default function CartPage() {
         catch { toast.error('Failed to remove'); }
     };
 
-    if (!loading && cart.items.length === 0) {
+    if (!loading && (cart.items?.length ?? 0) === 0) {
         return (
             <div className="cart-page">
                 <motion.div className="empty-state" style={{ marginTop: 'var(--space-10)' }} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -35,7 +35,7 @@ export default function CartPage() {
         );
     }
 
-    const deliveryFee = cart.totalAmount >= 25 ? 0 : 2.99;
+    const deliveryFee = parseFloat(cart.totalAmount || 0) >= 500 ? 0 : 49;
     const total = (parseFloat(cart.totalAmount || 0) + deliveryFee).toFixed(2);
 
     return (
@@ -82,7 +82,7 @@ export default function CartPage() {
                                                 </button>
                                             </div>
                                             <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                <span className="cart-item__price">${item.totalPrice?.toFixed(2)}</span>
+                                                <span className="cart-item__price">₹{item.totalPrice?.toFixed(2)}</span>
                                                 <button className="cart-item__remove" onClick={() => handleRemove(item.id)}><FiTrash2 size={14} /></button>
                                             </div>
                                         </div>
@@ -111,22 +111,22 @@ export default function CartPage() {
                     <h3 className="cart-summary__title">Order Summary</h3>
                     <div className="cart-summary__row">
                         <span>Subtotal ({cart.itemCount} items)</span>
-                        <span style={{ fontWeight: 600, color: 'var(--gray-800)' }}>${parseFloat(cart.totalAmount || 0).toFixed(2)}</span>
+                        <span style={{ fontWeight: 600, color: 'var(--gray-800)' }}>₹{parseFloat(cart.totalAmount || 0).toFixed(2)}</span>
                     </div>
                     <div className="cart-summary__row">
                         <span>Delivery</span>
                         <span style={{ color: deliveryFee === 0 ? 'var(--primary)' : 'var(--gray-800)', fontWeight: 600 }}>
-                            {deliveryFee === 0 ? 'FREE' : `$${deliveryFee}`}
+                            {deliveryFee === 0 ? 'FREE' : `₹${deliveryFee}`}
                         </span>
                     </div>
                     {deliveryFee > 0 && (
                         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--primary)', fontWeight: 600, margin: '0 0 8px' }}>
-                            Add ${(25 - parseFloat(cart.totalAmount)).toFixed(2)} more for free delivery!
+                        Add ₹{(500 - parseFloat(cart.totalAmount)).toFixed(0)} more for free delivery!
                         </p>
                     )}
                     <div className="cart-summary__row cart-summary__row--total">
                         <span>Total</span>
-                        <span>${total}</span>
+                        <span>₹{total}</span>
                     </div>
 
                     <div className="cart-summary__eco">

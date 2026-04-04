@@ -321,7 +321,7 @@ export default function AdminDashboard() {
             <div className="product-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', marginBottom: 'var(--space-8)' }}>
                 {[
                     { icon: <FiUsers />, label: 'Total Users', value: stats.totalUsers || 0, color: 'var(--accent-blue)' },
-                    { icon: <FiActivity />, label: 'Active Users', value: Math.round((stats.totalUsers || 0) * 0.8) || 0, color: '#8b5cf6' },
+                    { icon: <FiActivity />, label: 'Active Users', value: stats.activeUsers ?? Math.round((stats.totalUsers || 0) * 0.8), color: '#8b5cf6' },
                     { icon: <FiPackage />, label: 'Total Orders', value: stats.totalOrders || 0, color: 'var(--accent-orange)' },
                     { icon: <FiShoppingBag />, label: 'Total Products', value: stats.totalProducts || 0, color: 'var(--primary)' },
                     { icon: <FiBox />, label: 'Total Inventory Stock', value: stats.totalStock ?? 0, color: '#14b8a6' },

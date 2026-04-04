@@ -8,7 +8,7 @@ import { RiLeafLine } from 'react-icons/ri';
 
 export default function Navbar() {
     const { user, isAuthenticated, logout } = useAuth();
-    const { cart } = useCart();
+    const { cart, itemCount, totalAmount } = useCart();
     const navigate = useNavigate();
     const location = useLocation();
     const [search, setSearch] = useState('');
@@ -70,24 +70,24 @@ export default function Navbar() {
                                 <FiShoppingCart size={16} />
                                 <AnimatePresence mode="wait">
                                     <motion.span
-                                        key={cart.itemCount}
+                                        key={itemCount}
                                         initial={{ scale: 0.5, opacity: 0 }}
                                         animate={{ scale: 1, opacity: 1 }}
                                         exit={{ scale: 0.5, opacity: 0 }}
                                         transition={{ type: 'spring', stiffness: 400, damping: 15 }}
                                     >
-                                        {cart.itemCount > 0 ? `₹${parseFloat(cart.totalAmount || 0).toFixed(0)}` : 'Cart'}
+                                        {itemCount > 0 ? `₹${parseFloat(totalAmount || 0).toFixed(0)}` : 'Cart'}
                                     </motion.span>
                                 </AnimatePresence>
-                                {cart.itemCount > 0 && (
+                                {itemCount > 0 && (
                                     <motion.span
                                         className="navbar__cart-badge"
-                                        key={`badge-${cart.itemCount}`}
+                                        key={`badge-${itemCount}`}
                                         initial={{ scale: 0 }}
                                         animate={{ scale: 1 }}
                                         transition={{ type: 'spring', stiffness: 500, damping: 15 }}
                                     >
-                                        {cart.itemCount}
+                                        {itemCount}
                                     </motion.span>
                                 )}
                             </Link>

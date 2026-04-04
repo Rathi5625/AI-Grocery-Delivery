@@ -1,5 +1,6 @@
 package com.freshai.grocery.product.controller;
 
+import com.freshai.grocery.exception.ApiResponse;
 import com.freshai.grocery.product.dto.*;
 import com.freshai.grocery.product.service.ProductService;
 import lombok.RequiredArgsConstructor;
@@ -16,45 +17,62 @@ public class ProductController {
 
     private final ProductService productService;
 
+    /** GET /api/products?page=0&size=12&sortBy=name&direction=asc */
     @GetMapping
-    public ResponseEntity<Page<ProductDTO>> getAllProducts(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "12") int size,
+    public ResponseEntity<ApiResponse<Page<ProductDTO>>> getAllProducts(
+            @RequestParam(defaultValue = "0")    int page,
+            @RequestParam(defaultValue = "12")   int size,
             @RequestParam(defaultValue = "name") String sortBy,
-            @RequestParam(defaultValue = "asc") String direction) {
-        return ResponseEntity.ok(productService.getAllProducts(page, size, sortBy, direction));
+            @RequestParam(defaultValue = "asc")  String direction) {
+        return ResponseEntity.ok(ApiResponse.ok(productService.getAllProducts(page, size, sortBy, direction)));
     }
 
+    /** GET /api/products/{id} */
     @GetMapping("/{id}")
-    public ResponseEntity<ProductDTO> getProduct(@PathVariable Long id) {
-        return ResponseEntity.ok(productService.getProductById(id));
+    public ResponseEntity<ApiResponse<ProductDTO>> getProduct(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(productService.getProductById(id)));
     }
 
+    /** GET /api/products/slug/{slug} */
     @GetMapping("/slug/{slug}")
-    public ResponseEntity<ProductDTO> getProductBySlug(@PathVariable String slug) {
-        return ResponseEntity.ok(productService.getProductBySlug(slug));
+    public ResponseEntity<ApiResponse<ProductDTO>> getProductBySlug(@PathVariable String slug) {
+        return ResponseEntity.ok(ApiResponse.ok(productService.getProductBySlug(slug)));
     }
 
-    @GetMapping("/search")
-    public ResponseEntity<Page<ProductDTO>> searchProducts(
-            @RequestParam String q,
-            @RequestParam(defaultValue = "0") int page,
+    /** GET /api/products/category/{id}?page=0&size=12  — was missing, caused frontend 404 */
+    @GetMapping("/category/{categoryId}")
+    public ResponseEntity<ApiResponse<Page<ProductDTO>>> getProductsByCategory(
+            @PathVariable Long categoryId,
+            @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "12") int size) {
-        return ResponseEntity.ok(productService.searchProducts(q, page, size));
+        return ResponseEntity.ok(ApiResponse.ok(productService.getProductsByCategory(categoryId, page, size)));
     }
 
+    /** GET /api/products/search?q=apple&page=0&size=12 */
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<Page<ProductDTO>>> searchProducts(
+            @RequestParam String q,
+            @RequestParam(defaultValue = "0")  int page,
+            @RequestParam(defaultValue = "12") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(productService.searchProducts(q, page, size)));
+    }
+
+    /** GET /api/products/featured */
     @GetMapping("/featured")
-    public ResponseEntity<List<ProductDTO>> getFeaturedProducts() {
-        return ResponseEntity.ok(productService.getFeaturedProducts());
+    public ResponseEntity<ApiResponse<List<ProductDTO>>> getFeaturedProducts() {
+        return ResponseEntity.ok(ApiResponse.ok(productService.getFeaturedProducts()));
     }
 
+    /** GET /api/products/{id}/similar */
     @GetMapping("/{id}/similar")
-    public ResponseEntity<List<ProductDTO>> getSimilarProducts(@PathVariable Long id) {
-        return ResponseEntity.ok(productService.getSimilarProducts(id));
+    public ResponseEntity<ApiResponse<List<ProductDTO>>> getSimilarProducts(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(productService.getSimilarProducts(id)));
     }
 
+    /** GET /api/products/categories */
     @GetMapping("/categories")
-    public ResponseEntity<List<CategoryDTO>> getCategories() {
-        return ResponseEntity.ok(productService.getAllCategories());
+    public ResponseEntity<ApiResponse<List<CategoryDTO>>> getCategories() {
+        return ResponseEntity.ok(ApiResponse.ok(productService.getAllCategories()));
     }
 }
+

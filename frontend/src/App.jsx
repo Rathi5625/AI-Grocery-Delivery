@@ -13,7 +13,9 @@ import CheckoutPage from './pages/CheckoutPage';
 import OrderSuccessPage from './pages/OrderSuccessPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import AdminDashboard from './pages/AdminDashboard';
+import UserProfilePage from './pages/UserProfilePage';
 import './index.css';
 
 function AppLayout({ children, showNav = true, showFooter = true }) {
@@ -32,20 +34,36 @@ function AnimatedRoutes() {
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
-        {/* Auth — No Layout */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+        {/* ── Auth pages (no layout) ── */}
+        <Route path="/login"            element={<LoginPage />} />
+        <Route path="/register"         element={<RegisterPage />} />
+        <Route path="/forgot-password"  element={<ForgotPasswordPage />} />
 
-        {/* Admin */}
+        {/* ── Admin (no footer) ── */}
         <Route path="/admin" element={<AppLayout showFooter={false}><AdminDashboard /></AppLayout>} />
 
-        {/* Main Pages */}
-        <Route path="/" element={<AppLayout><HomePage /></AppLayout>} />
-        <Route path="/products" element={<AppLayout><ProductListPage /></AppLayout>} />
-        <Route path="/products/:id" element={<AppLayout><ProductDetailPage /></AppLayout>} />
-        <Route path="/cart" element={<AppLayout><CartPage /></AppLayout>} />
-        <Route path="/checkout" element={<AppLayout><CheckoutPage /></AppLayout>} />
+        {/* ── Main pages ── */}
+        <Route path="/"              element={<AppLayout><HomePage /></AppLayout>} />
+        <Route path="/products"      element={<AppLayout><ProductListPage /></AppLayout>} />
+        <Route path="/products/:id"  element={<AppLayout><ProductDetailPage /></AppLayout>} />
+        <Route path="/cart"          element={<AppLayout><CartPage /></AppLayout>} />
+        <Route path="/checkout"      element={<AppLayout><CheckoutPage /></AppLayout>} />
         <Route path="/order-success" element={<AppLayout><OrderSuccessPage /></AppLayout>} />
+        <Route path="/profile"       element={<AppLayout><UserProfilePage /></AppLayout>} />
+
+        {/* ── 404 fallback ── */}
+        <Route path="*" element={
+          <AppLayout>
+            <div style={{ textAlign: 'center', padding: '8rem 2rem' }}>
+              <div style={{ fontSize: '5rem' }}>🥬</div>
+              <h1 style={{ fontSize: '2rem', fontWeight: 800, margin: '1rem 0 0.5rem' }}>Page not found</h1>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
+                Looks like this page went out of stock.
+              </p>
+              <a href="/" className="btn btn--primary">Go Home</a>
+            </div>
+          </AppLayout>
+        } />
       </Routes>
     </AnimatePresence>
   );
@@ -70,12 +88,8 @@ export default function App() {
                 fontWeight: 500,
                 boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
               },
-              success: {
-                iconTheme: { primary: '#10b77f', secondary: '#fff' },
-              },
-              error: {
-                iconTheme: { primary: '#ef4444', secondary: '#fff' },
-              },
+              success: { iconTheme: { primary: '#10b77f', secondary: '#fff' } },
+              error:   { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
             }}
           />
           <AnimatedRoutes />

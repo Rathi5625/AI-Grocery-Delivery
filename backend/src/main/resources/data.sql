@@ -237,11 +237,21 @@ INSERT IGNORE INTO products (id, name, slug, description, price, discount_price,
 (199, 'Loofah Sponge (Natural)', 'loofah-sponge-natural', 'Natural loofah body sponge. Grown, not manufactured. Biodegradable.', 2.49, NULL, 'Per Piece', 120, 'https://images.unsplash.com/photo-1607613009820-a29f7bb81c04?w=400', 8, 9.8, false, false, 'Local Farm', 0.05, 365, true),
 (200, 'Reusable Silicone Lids', 'reusable-silicone-lids', 'Flexible silicone stretch lids for bowls and containers. No more cling wrap.', 5.99, NULL, 'Set of 6', 70, 'https://images.unsplash.com/photo-1607613009820-a29f7bb81c04?w=400', 8, 9.5, false, false, 'Eco Brand', 0.10, 3650, true);
 
--- ============ SEED USERS ============
--- Admin (password: admin123)
-INSERT IGNORE INTO users (id, email, password_hash, first_name, last_name, phone, role, is_active, created_at, updated_at) VALUES
-(1, 'admin@freshai.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Admin', 'FreshAI', '+919876543210', 'ADMIN', true, NOW(), NOW());
 
--- Customer (password: customer123)
-INSERT IGNORE INTO users (id, email, password_hash, first_name, last_name, phone, role, is_active, created_at, updated_at) VALUES
-(2, 'customer@freshai.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Parth', 'Customer', '+919876543211', 'CUSTOMER', true, NOW(), NOW());
+-- ============ SEED USERS ============
+-- Admin (password: admin123)  | Hash: BCrypt of "admin123"
+INSERT INTO users (id, email, password_hash, first_name, last_name, phone, role, is_active, created_at, updated_at) VALUES
+(1, 'admin@freshai.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Admin', 'FreshAI', '+919876543210', 'ADMIN', true, NOW(), NOW())
+ON DUPLICATE KEY UPDATE
+  password_hash = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+  role = 'ADMIN',
+  is_active = true;
+
+-- Customer (password: admin123)
+INSERT INTO users (id, email, password_hash, first_name, last_name, phone, role, is_active, created_at, updated_at) VALUES
+(2, 'customer@freshai.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Parth', 'Customer', '+919876543211', 'CUSTOMER', true, NOW(), NOW())
+ON DUPLICATE KEY UPDATE
+  password_hash = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
+  role = 'CUSTOMER',
+  is_active = true;
+

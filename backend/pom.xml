@@ -74,6 +74,12 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Spring Mail (OTP email delivery) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
         <!-- Dev Tools -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

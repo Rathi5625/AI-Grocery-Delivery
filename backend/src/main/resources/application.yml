@@ -4,17 +4,30 @@ server:
 spring:
   application:
     name: freshai-grocery
+
+  # ── Database ─────────────────────────────────────────────────
   datasource:
-    url: jdbc:mysql://localhost:3306/freshai_grocery?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    url: jdbc:mysql://localhost:3306/grocery_clean?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
     username: root
-    password: root
+    password: '@Parth@657825op@'
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      connection-test-query: SELECT 1
+
+  # ── SQL Init: data.sql runs AFTER Hibernate creates tables ─────────────
   sql:
     init:
       mode: always
+      data-locations: classpath:data.sql
+
+  # ── JPA ──────────────────────────────────────────────────────
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: create   # Drops & recreates tables from JPA entities on every startup
     show-sql: false
     defer-datasource-initialization: true
     properties:
@@ -23,15 +36,57 @@ spring:
         format_sql: true
     open-in-view: false
 
+  # ── MVC (404 handling) ───────────────────────────────────────
+  mvc:
+    throw-exception-if-no-handler-found: true
+  web:
+    resources:
+      add-mappings: false
+
+  # ── Email / SMTP (disabled until you add Gmail App Password) ─
+  # To enable: set the username/password below and set app.mail.enabled=true
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ''    # ← paste your Gmail address here when ready
+    password: ''    # ← paste your 16-char Gmail App Password here
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+        debug: false
+    test-connection: false   # prevents startup failure when SMTP is not configured
+
+# ── App Config ────────────────────────────────────────────────
 app:
   jwt:
     secret: FreshAI2024SecretKeyForJWTTokenGenerationMustBe256BitsLongAtLeast!!
-    expiration-ms: 900000
-    refresh-expiration-ms: 604800000
+    expiration-ms: 900000           # 15 minutes
+    refresh-expiration-ms: 604800000  # 7 days
+
   cors:
     allowed-origins: http://localhost:5173,http://localhost:3000
 
+  frontend:
+    url: http://localhost:3000
+
+  mail:
+    enabled: false   # ← set to true after adding Gmail credentials above
+    from-name: "FreshAI"
+
+  otp:
+    expiry-minutes: 10
+    max-attempts: 5
+
+# ── Logging ───────────────────────────────────────────────────
 logging:
   level:
-    com.freshai.grocery: DEBUG
-    org.springframework.security: DEBUG
+    com.freshai.grocery: INFO
+    org.springframework.security: WARN
+    com.zaxxer.hikari: WARN

@@ -111,6 +111,7 @@ public class ProductService {
                 .sustainabilityScore(p.getSustainabilityScore())
                 .isOrganic(p.getIsOrganic())
                 .isFeatured(p.getIsFeatured())
+                .isActive(p.getIsActive())
                 .origin(p.getOrigin())
                 .nutritionalInfo(p.getNutritionalInfo())
                 .carbonFootprint(p.getCarbonFootprint())
@@ -125,7 +126,6 @@ public class ProductService {
                 .slug(c.getSlug())
                 .description(c.getDescription())
                 .imageUrl(c.getImageUrl())
-                .parentId(c.getParent() != null ? c.getParent().getId() : null)
                 .sortOrder(c.getSortOrder())
                 .build();
     }
@@ -142,6 +142,7 @@ public class ProductService {
         product.setSustainabilityScore(dto.getSustainabilityScore());
         product.setIsOrganic(dto.getIsOrganic());
         product.setIsFeatured(dto.getIsFeatured());
+        if (dto.getIsActive() != null) product.setIsActive(dto.getIsActive());
         product.setOrigin(dto.getOrigin());
         product.setNutritionalInfo(dto.getNutritionalInfo());
         product.setCarbonFootprint(dto.getCarbonFootprint());

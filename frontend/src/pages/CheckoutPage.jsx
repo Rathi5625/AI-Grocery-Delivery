@@ -13,7 +13,7 @@ export default function CheckoutPage() {
     const [form, setForm] = useState({ address: '', notes: '', paymentMethod: 'CARD' });
     const [selectedSlot, setSelectedSlot] = useState(0);
 
-    const deliveryFee = cart.totalAmount >= 25 ? 0 : 2.99;
+    const deliveryFee = parseFloat(cart.totalAmount || 0) >= 500 ? 0 : 49;
     const total = (parseFloat(cart.totalAmount || 0) + deliveryFee).toFixed(2);
 
     const handleSubmit = async (e) => {
@@ -25,7 +25,7 @@ export default function CheckoutPage() {
             toast.success('Order placed! 🎉');
             navigate('/order-success', { state: { order: res.data } });
         } catch (err) {
-            toast.error(err.response?.data?.message || 'Failed to place order');
+            toast.error(err.userMessage || 'Failed to place order. Check your cart.');
         } finally { setLoading(false); }
     };
 
@@ -107,20 +107,20 @@ export default function CheckoutPage() {
                         {cart.items.map(item => (
                             <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 'var(--text-sm)', color: 'var(--gray-600)' }}>
                                 <span style={{ maxWidth: '65%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.productName} × {item.quantity}</span>
-                                <span style={{ fontWeight: 600, color: 'var(--gray-800)' }}>${item.totalPrice?.toFixed(2)}</span>
+                                <span style={{ fontWeight: 600, color: 'var(--gray-800)' }}>₹{item.totalPrice?.toFixed(2)}</span>
                             </div>
                         ))}
                         <div className="cart-summary__row" style={{ marginTop: 'var(--space-4)', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--gray-100)' }}>
-                            <span>Subtotal</span><span style={{ fontWeight: 600 }}>${parseFloat(cart.totalAmount || 0).toFixed(2)}</span>
+                            <span>Subtotal</span><span style={{ fontWeight: 600 }}>₹{parseFloat(cart.totalAmount || 0).toFixed(2)}</span>
                         </div>
                         <div className="cart-summary__row">
                             <span>Delivery</span>
                             <span style={{ color: deliveryFee === 0 ? 'var(--primary)' : 'var(--gray-800)', fontWeight: 600 }}>
-                                {deliveryFee === 0 ? 'FREE' : `$${deliveryFee}`}
+                                {deliveryFee === 0 ? 'FREE' : `₹${deliveryFee}`}
                             </span>
                         </div>
                         <div className="cart-summary__row cart-summary__row--total">
-                            <span>Total</span><span>${total}</span>
+                            <span>Total</span><span>₹{total}</span>
                         </div>
 
                         <motion.button
@@ -131,7 +131,7 @@ export default function CheckoutPage() {
                             id="place-order-btn"
                             whileTap={{ scale: 0.98 }}
                         >
-                            {loading ? 'Processing...' : `Place Order — $${total}`}
+                            {loading ? 'Processing...' : `Place Order — ₹${total}`}
                             {!loading && <FiArrowRight />}
                         </motion.button>
                     </motion.div>

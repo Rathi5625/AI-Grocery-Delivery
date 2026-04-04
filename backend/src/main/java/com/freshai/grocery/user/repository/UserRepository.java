@@ -8,4 +8,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
 
     boolean existsByEmail(String email);
+
+    /** Used by admin dashboard — counts users with isActive = true/false */
+    long countByIsActive(boolean isActive);
+
+    Object countByIsActive1(boolean b);
 }

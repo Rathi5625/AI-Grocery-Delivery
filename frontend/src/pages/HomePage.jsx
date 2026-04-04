@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { getFeaturedProducts, getCategories } from '../api/productApi';
+import { loadFeaturedProducts, loadCategories } from '../services/productService';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import ProductCard from '../components/product/ProductCard';
 import { ProductGridSkeleton } from '../components/ui/Skeletons';
 import { staggerContainer, slideUp } from '../animations/variants';
 import { FiArrowRight, FiZap, FiTruck, FiShield, FiClock } from 'react-icons/fi';
-import { RiLeafLine, RiSparklingLine } from 'react-icons/ri';
+import { RiLeafLine } from 'react-icons/ri';
 import toast from 'react-hot-toast';
 
 const CATEGORY_ICONS = ['🥬', '🥛', '🍞', '☕', '🫙', '🧊', '🌱', '🍿'];
@@ -23,9 +23,12 @@ export default function HomePage() {
     useEffect(() => {
         const load = async () => {
             try {
-                const [featRes, catRes] = await Promise.all([getFeaturedProducts(), getCategories()]);
-                setFeatured(featRes.data);
-                setCategories(catRes.data);
+                const [featData, catData] = await Promise.all([
+                    loadFeaturedProducts(),
+                    loadCategories(),
+                ]);
+                setFeatured(featData);
+                setCategories(catData);
             } catch (err) {
                 console.error(err);
             } finally {

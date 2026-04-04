@@ -16,32 +16,45 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false, length = 100)
+    @Column(unique = true, nullable = false, length = 255)
     private String email;
 
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
 
-    @Column(name = "first_name", nullable = false, length = 50)
+    @Column(name = "first_name", nullable = false, length = 100)
     private String firstName;
 
-    @Column(name = "last_name", nullable = false, length = 50)
+    @Column(name = "last_name", nullable = false, length = 100)
     private String lastName;
 
     @Column(length = 20)
     private String phone;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, columnDefinition = "ENUM('CUSTOMER','ADMIN') DEFAULT 'CUSTOMER'")
     @Builder.Default
     private Role role = Role.CUSTOMER;
 
-    @Column(name = "avatar_url")
-    private String avatarUrl;
+    /** Maps to profile_image column added in schema v2 */
+    @Column(name = "profile_image", length = 500)
+    private String profileImage;
+
+    /** Legacy alias kept for backward compatibility */
+    @Transient
+    public String getAvatarUrl() { return profileImage; }
 
     @Column(name = "is_active")
     @Builder.Default
     private Boolean isActive = true;
+
+    @Column(name = "email_verified")
+    @Builder.Default
+    private Boolean emailVerified = false;
+
+    @Column(name = "phone_verified")
+    @Builder.Default
+    private Boolean phoneVerified = false;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -61,6 +74,6 @@ public class User {
     }
 
     public enum Role {
-        CUSTOMER, ADMIN, VENDOR
+        CUSTOMER, ADMIN
     }
 }

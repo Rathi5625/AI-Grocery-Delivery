@@ -33,7 +33,7 @@ export default function RegisterPage() {
             toast.success('Account created!', { icon: '🎉' });
             navigate('/');
         } catch (err) {
-            setError(err.response?.data?.message || 'Registration failed');
+            setError(err.userMessage || 'Registration failed. Please try again.');
         } finally { setLoading(false); }
     };
 

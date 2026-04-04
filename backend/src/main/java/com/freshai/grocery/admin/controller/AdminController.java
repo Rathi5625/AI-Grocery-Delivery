@@ -1,15 +1,18 @@
 package com.freshai.grocery.admin.controller;
 
+import com.freshai.grocery.exception.ApiResponse;
+import com.freshai.grocery.exception.BadRequestException;
+import com.freshai.grocery.exception.ResourceNotFoundException;
 import com.freshai.grocery.order.dto.OrderDTO;
 import com.freshai.grocery.order.service.OrderService;
 import com.freshai.grocery.product.dto.ProductDTO;
+import com.freshai.grocery.product.entity.Product;
+import com.freshai.grocery.product.repository.ProductRepository;
 import com.freshai.grocery.product.service.ProductService;
 import com.freshai.grocery.order.repository.OrderRepository;
-import com.freshai.grocery.product.repository.ProductRepository;
-import com.freshai.grocery.user.repository.UserRepository;
 import com.freshai.grocery.user.dto.UserDTO;
-import com.freshai.grocery.exception.ResourceNotFoundException;
-import com.freshai.grocery.product.entity.Product;
+import com.freshai.grocery.user.entity.User;
+import com.freshai.grocery.user.repository.UserRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -20,69 +23,195 @@ import org.springframework.web.bind.annotation.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Admin-only endpoints — require ROLE_ADMIN JWT claim.
+ * All responses use ApiResponse<T> envelope.
+ *
+ * ┌───────────────────────────────────────────────────────────────────────┐
+ * │ GET    /api/admin/dashboard            → KPI metrics                  │
+ * │ GET    /api/admin/users                → paginated user list          │
+ * │ PATCH  /api/admin/users/{id}/status   → toggle isActive              │
+ * │ GET    /api/admin/products             → all products                 │
+ * │ POST   /api/admin/products            → create product                │
+ * │ PUT    /api/admin/products/{id}       → update product                │
+ * │ PUT    /api/admin/products/{id}/stock → update stock qty              │
+ * │ DELETE /api/admin/products/{id}       → soft-delete product           │
+ * │ GET    /api/admin/products/low-stock  → products below threshold      │
+ * │ GET    /api/admin/orders              → paginated order list          │
+ * │ PUT    /api/admin/orders/{id}/status  → update order status           │
+ * └───────────────────────────────────────────────────────────────────────┘
+ */
 @RestController
 @RequestMapping("/api/admin")
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
 public class AdminController {
 
-    private final ProductService productService;
-    private final OrderService orderService;
-    private final OrderRepository orderRepository;
-    private final ProductRepository productRepository;
-    private final UserRepository userRepository;
+    private final ProductService     productService;
+    private final OrderService       orderService;
+    private final OrderRepository    orderRepository;
+    private final ProductRepository  productRepository;
+    private final UserRepository     userRepository;
 
-    @GetMapping({ "/dashboard", "/stats" })
-    public ResponseEntity<Map<String, Object>> getDashboard() {
+    // ── DASHBOARD ──────────────────────────────────────────────────────────
+
+    @GetMapping({"/dashboard", "/stats"})
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getDashboard() {
         Map<String, Object> stats = new LinkedHashMap<>();
-        stats.put("totalProducts", productRepository.count());
-        stats.put("totalUsers", userRepository.count());
-        stats.put("totalOrders", orderRepository.count());
-        stats.put("pendingOrders", orderRepository.countPendingOrders());
-        stats.put("totalRevenue",
-                orderRepository.calculateTotalRevenue() != null ? orderRepository.calculateTotalRevenue() : 0);
-        stats.put("totalStock", productRepository.sumTotalStock());
-        stats.put("lowStockCount", productRepository.findLowStockProducts(10).size());
-        return ResponseEntity.ok(stats);
+        stats.put("totalProducts",  productRepository.count());
+        stats.put("totalUsers",     userRepository.count());
+        stats.put("activeUsers",    userRepository.countByIsActive(true));
+        stats.put("totalOrders",    orderRepository.count());
+        stats.put("pendingOrders",  orderRepository.countPendingOrders());
+
+        var revenue = orderRepository.calculateTotalRevenue();
+        stats.put("totalRevenue",   revenue != null ? revenue : 0);
+        stats.put("totalStock",     productRepository.sumTotalStock());
+        stats.put("lowStockCount",  productRepository.findLowStockProducts(10).size());
+
+        // Order status breakdown for donut chart
+        List<Map<String, Object>> ordersByStatus = orderRepository.countOrdersByStatus()
+                .stream()
+                .map(row -> {
+                    Map<String, Object> entry = new LinkedHashMap<>();
+                    entry.put("status", row[0].toString());
+                    entry.put("count",  row[1]);
+                    return entry;
+                })
+                .collect(Collectors.toList());
+        stats.put("ordersByStatus", ordersByStatus);
+
+        return ResponseEntity.ok(ApiResponse.ok(stats));
+    }
+
+    // ── USERS ──────────────────────────────────────────────────────────────
+
+    @GetMapping("/users")
+    public ResponseEntity<ApiResponse<List<UserDTO>>> getAllUsers(
+            @RequestParam(defaultValue = "0")    int page,
+            @RequestParam(defaultValue = "50")   int size) {
+
+        List<UserDTO> users = userRepository.findAll().stream()
+                .map(this::toUserDTO)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(ApiResponse.ok(users));
+    }
+
+    @PatchMapping("/users/{id}/status")
+    public ResponseEntity<ApiResponse<UserDTO>> toggleUserStatus(@PathVariable Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
+        user.setIsActive(!Boolean.TRUE.equals(user.getIsActive()));
+        userRepository.save(user);
+        return ResponseEntity.ok(ApiResponse.ok(
+            toUserDTO(user),
+            "User status updated to " + (user.getIsActive() ? "ACTIVE" : "INACTIVE")
+        ));
+    }
+
+    // ── PRODUCTS ── ────────────────────────────────────────────────────────
+
+    @GetMapping("/products")
+    public ResponseEntity<ApiResponse<List<ProductDTO>>> getAllProducts() {
+        List<ProductDTO> products = productRepository.findAll().stream()
+                .map(this::toProductDTO)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(ApiResponse.ok(products));
     }
 
     @GetMapping("/products/low-stock")
-    public ResponseEntity<List<ProductDTO>> getLowStockProducts(
+    public ResponseEntity<ApiResponse<List<ProductDTO>>> getLowStockProducts(
             @RequestParam(defaultValue = "10") int threshold) {
-        return ResponseEntity.ok(productRepository.findLowStockProducts(threshold).stream()
-                .map(p -> ProductDTO.builder()
-                        .id(p.getId())
-                        .name(p.getName())
-                        .slug(p.getSlug())
-                        .price(p.getPrice())
-                        .stockQuantity(p.getStockQuantity())
-                        .imageUrl(p.getImageUrl())
-                        .categoryId(p.getCategory() != null ? p.getCategory().getId() : null)
-                        .categoryName(p.getCategory() != null ? p.getCategory().getName() : null)
-                        .build())
-                .collect(Collectors.toList()));
+        List<ProductDTO> products = productRepository.findLowStockProducts(threshold).stream()
+                .map(this::toProductDTO)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(ApiResponse.ok(products,
+            products.size() + " product(s) below stock threshold of " + threshold));
     }
 
-    @GetMapping("/users")
-    public ResponseEntity<List<UserDTO>> getAllUsers() {
-        List<UserDTO> users = userRepository.findAll().stream().map(u -> UserDTO.builder()
+    @PostMapping("/products")
+    public ResponseEntity<ApiResponse<ProductDTO>> createProduct(
+            @Valid @RequestBody ProductDTO productDTO) {
+        return ResponseEntity.ok(ApiResponse.ok(
+            productService.createProduct(productDTO), "Product created"
+        ));
+    }
+
+    @PutMapping("/products/{id}")
+    public ResponseEntity<ApiResponse<ProductDTO>> updateProduct(
+            @PathVariable Long id,
+            @Valid @RequestBody ProductDTO productDTO) {
+        return ResponseEntity.ok(ApiResponse.ok(
+            productService.updateProduct(id, productDTO), "Product updated"
+        ));
+    }
+
+    @PutMapping("/products/{id}/stock")
+    public ResponseEntity<ApiResponse<ProductDTO>> updateProductStock(
+            @PathVariable Long id,
+            @RequestBody Map<String, Integer> payload) {
+
+        Integer newStock = payload.get("stockQuantity");
+        if (newStock == null || newStock < 0) {
+            throw new BadRequestException("stockQuantity must be a non-negative integer.");
+        }
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + id));
+        product.setStockQuantity(newStock);
+        productRepository.save(product);
+        return ResponseEntity.ok(ApiResponse.ok(
+            productService.getProductById(id),
+            "Stock updated to " + newStock
+        ));
+    }
+
+    @DeleteMapping("/products/{id}")
+    public ResponseEntity<ApiResponse<Map<String, String>>> deleteProduct(@PathVariable Long id) {
+        productService.deleteProduct(id);
+        return ResponseEntity.ok(ApiResponse.ok(
+            Map.of("id", String.valueOf(id), "message", "Product deleted successfully.")
+        ));
+    }
+
+    // ── ORDERS ─────────────────────────────────────────────────────────────
+
+    @GetMapping("/orders")
+    public ResponseEntity<ApiResponse<Page<OrderDTO>>> getAllOrders(
+            @RequestParam(defaultValue = "0")   int page,
+            @RequestParam(defaultValue = "20")  int size) {
+        return ResponseEntity.ok(ApiResponse.ok(orderService.getAllOrders(page, size)));
+    }
+
+    @PutMapping("/orders/{id}/status")
+    public ResponseEntity<ApiResponse<OrderDTO>> updateOrderStatus(
+            @PathVariable Long id,
+            @RequestParam String status) {
+        return ResponseEntity.ok(ApiResponse.ok(
+            orderService.updateOrderStatus(id, status),
+            "Order status updated to " + status.toUpperCase()
+        ));
+    }
+
+    // ── PRIVATE HELPERS ────────────────────────────────────────────────────
+
+    private UserDTO toUserDTO(User u) {
+        return UserDTO.builder()
                 .id(u.getId())
                 .email(u.getEmail())
                 .firstName(u.getFirstName())
                 .lastName(u.getLastName())
                 .phone(u.getPhone())
                 .role(u.getRole().name())
-                .avatarUrl(u.getAvatarUrl())
+                .profileImage(u.getProfileImage())   // fixed: was u.getAvatarUrl()
                 .isActive(u.getIsActive())
+                .emailVerified(u.getEmailVerified())
+                .phoneVerified(u.getPhoneVerified())
                 .createdAt(u.getCreatedAt())
-                .build()).collect(Collectors.toList());
-        return ResponseEntity.ok(users);
+                .build();
     }
 
-    @GetMapping("/products")
-    public ResponseEntity<List<ProductDTO>> getAllProducts() {
-        // Just return all products for admin
-        return ResponseEntity.ok(productRepository.findAll().stream().map(p -> ProductDTO.builder()
+    private ProductDTO toProductDTO(Product p) {
+        return ProductDTO.builder()
                 .id(p.getId())
                 .name(p.getName())
                 .slug(p.getSlug())
@@ -98,51 +227,11 @@ public class AdminController {
                 .sustainabilityScore(p.getSustainabilityScore())
                 .isOrganic(p.getIsOrganic())
                 .isFeatured(p.getIsFeatured())
+                .isActive(p.getIsActive())
                 .origin(p.getOrigin())
                 .nutritionalInfo(p.getNutritionalInfo())
                 .carbonFootprint(p.getCarbonFootprint())
                 .freshnessDays(p.getFreshnessDays())
-                .build()).collect(Collectors.toList()));
-    }
-
-    @PostMapping("/products")
-    public ResponseEntity<ProductDTO> createProduct(@Valid @RequestBody ProductDTO productDTO) {
-        return ResponseEntity.ok(productService.createProduct(productDTO));
-    }
-
-    @PutMapping("/products/{id}")
-    public ResponseEntity<ProductDTO> updateProduct(@PathVariable Long id, @Valid @RequestBody ProductDTO productDTO) {
-        return ResponseEntity.ok(productService.updateProduct(id, productDTO));
-    }
-
-    @PutMapping("/products/{id}/stock")
-    public ResponseEntity<ProductDTO> updateProductStock(@PathVariable Long id,
-            @RequestBody Map<String, Integer> payload) {
-        Integer newStock = payload.get("stockQuantity");
-        Product product = productRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
-        product.setStockQuantity(newStock);
-        productRepository.save(product);
-        return ResponseEntity.ok(productService.getProductById(id));
-    }
-
-    @DeleteMapping("/products/{id}")
-    public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
-        productService.deleteProduct(id);
-        return ResponseEntity.noContent().build();
-    }
-
-    @GetMapping("/orders")
-    public ResponseEntity<Page<OrderDTO>> getAllOrders(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "100") int size) {
-        return ResponseEntity.ok(orderService.getAllOrders(page, size));
-    }
-
-    @PutMapping("/orders/{id}/status")
-    public ResponseEntity<OrderDTO> updateOrderStatus(
-            @PathVariable Long id,
-            @RequestParam String status) {
-        return ResponseEntity.ok(orderService.updateOrderStatus(id, status));
+                .build();
     }
 }

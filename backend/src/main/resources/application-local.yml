@@ -1,0 +1,32 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# LOCAL DEVELOPER PROFILE — application-local.yml
+#
+# Activate with:   --spring.profiles.active=local
+# Or set env var:  SPRING_PROFILES_ACTIVE=local
+#
+# This file is gitignored. Keep real credentials here only.
+# ─────────────────────────────────────────────────────────────────────────────
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/freshai_grocery?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+    username: root
+    password: '@Parth@657825op@'   # ← your local MySQL password
+
+  mail:
+    username: YOUR_GMAIL@gmail.com    # ← paste your Gmail address here
+    password: xxxx xxxx xxxx xxxx    # ← paste your 16-char Gmail App Password here
+
+app:
+  mail:
+    enabled: true     # flip to true after setting SMTP creds above
+
+  frontend:
+    url: http://localhost:3000
+
+  cors:
+    allowed-origins: http://localhost:5173,http://localhost:3000
+
+logging:
+  level:
+    com.freshai.grocery: DEBUG

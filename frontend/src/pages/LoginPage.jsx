@@ -30,7 +30,7 @@ export default function LoginPage() {
             toast.success('Welcome back!', { icon: '👋' });
             navigate('/');
         } catch (err) {
-            setError(err.response?.data?.message || 'Invalid email or password');
+            setError(err.userMessage || 'Invalid email or password');
         } finally { setLoading(false); }
     };
 
@@ -88,7 +88,7 @@ export default function LoginPage() {
                             <input type="checkbox" id="rememberMe" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
                             <label htmlFor="rememberMe">Remember me</label>
                         </div>
-                        <a href="#" style={{ fontSize: 'var(--text-sm)', color: 'var(--primary)', fontWeight: 500 }}>Forgot password?</a>
+                        <Link to="/forgot-password" style={{ fontSize: 'var(--text-sm)', color: 'var(--primary)', fontWeight: 500 }}>Forgot password?</Link>
                     </div>
 
                     <motion.button
