@@ -73,12 +73,12 @@ public class UserService {
     public UserProfileDTO updateProfile(String email, UpdateProfileRequest req) {
         User user = findByEmail(email);
 
-        // ── Non-sensitive fields (no OTP) ──────────────────────────────────
-        if (isPresent(req.getFirstName()))  user.setFirstName(req.getFirstName().trim());
-        if (isPresent(req.getLastName()))   user.setLastName(req.getLastName().trim());
+        // Non-sensitive fields (no OTP required)
+        if (isPresent(req.getFirstName()))    user.setFirstName(req.getFirstName().trim());
+        if (isPresent(req.getLastName()))     user.setLastName(req.getLastName().trim());
         if (isPresent(req.getProfileImage())) user.setProfileImage(req.getProfileImage().trim());
 
-        // ── Sensitive fields: OTP must be verified first ───────────────────
+        // Sensitive fields: OTP must be verified first
         boolean sensitiveChange = req.getEmail() != null
                 || req.getPhone() != null
                 || req.getNewPassword() != null;
@@ -89,14 +89,12 @@ public class UserService {
                     "OTP code and purpose are required for sensitive field changes.");
             }
 
-            // Server-side OTP re-verification for security (throws BadRequestException if invalid)
             OtpVerifyRequest verifyReq = new OtpVerifyRequest();
             verifyReq.setPurpose(req.getOtpPurpose());
             verifyReq.setOtpCode(req.getVerifiedOtpCode());
             otpService.verifyOtp(user, verifyReq);
             log.debug("OTP re-verified for user={} purpose={}", user.getId(), req.getOtpPurpose());
 
-            // Apply the change matching the verified purpose  ← fixed switch fall-through
             switch (req.getOtpPurpose().toUpperCase().trim()) {
                 case "EMAIL_CHANGE" -> {
                     if (!isPresent(req.getEmail())) {
@@ -108,16 +106,16 @@ public class UserService {
                     }
                     String oldEmail = user.getEmail();
                     user.setEmail(newEmail);
-                    user.setEmailVerified(true);  // OTP sent to new email proves ownership
-                    emailService.sendProfileUpdateConfirmation(oldEmail, "email address");
+                    user.setEmailVerified(true);
+                    trySendEmail(() -> emailService.sendProfileUpdateConfirmation(oldEmail, "email address"));
                 }
                 case "PHONE_CHANGE" -> {
                     if (!isPresent(req.getPhone())) {
                         throw new BadRequestException("New phone number is required for PHONE_CHANGE.");
                     }
                     user.setPhone(req.getPhone().trim());
-                    user.setPhoneVerified(true);  // OTP proves ownership of new phone
-                    emailService.sendProfileUpdateConfirmation(user.getEmail(), "phone number");
+                    user.setPhoneVerified(true);
+                    trySendEmail(() -> emailService.sendProfileUpdateConfirmation(user.getEmail(), "phone number"));
                 }
                 case "PASSWORD_CHANGE" -> {
                     if (!isPresent(req.getNewPassword())) {
@@ -127,7 +125,7 @@ public class UserService {
                         throw new BadRequestException("Password must be at least 8 characters.");
                     }
                     user.setPasswordHash(passwordEncoder.encode(req.getNewPassword()));
-                    emailService.sendPasswordChangedAlert(user.getEmail(), user.getFirstName());
+                    trySendEmail(() -> emailService.sendPasswordChangedAlert(user.getEmail(), user.getFirstName()));
                 }
                 default -> throw new BadRequestException(
                     "Unknown OTP purpose: " + req.getOtpPurpose() +
@@ -147,9 +145,7 @@ public class UserService {
         OtpVerifyRequest req = new OtpVerifyRequest();
         req.setPurpose("EMAIL_VERIFY");
         req.setOtpCode(otpCode);
-
         otpService.verifyOtp(user, req);
-
         user.setEmailVerified(true);
         userRepository.save(user);
         log.info("Email verified: userId={}", user.getId());
@@ -218,6 +214,15 @@ public class UserService {
         return s != null && !s.isBlank();
     }
 
+    /** Wraps emailService calls — a misconfigured SMTP must never crash profile updates */
+    private void trySendEmail(Runnable action) {
+        try {
+            action.run();
+        } catch (Exception e) {
+            log.warn("Email notification skipped (SMTP may not be configured): {}", e.getMessage());
+        }
+    }
+
     // ─── DTO converters ──────────────────────────────────────────────────────
 
     private AddressDTO toAddressDTO(UserAddress a) {
@@ -232,13 +237,20 @@ public class UserService {
     }
 
     private OrderDTO toOrderDTO(Order o) {
-        List<OrderItemDTO> items = o.getOrderItems().stream().map(i -> OrderItemDTO.builder()
-                .productId(i.getProduct().getId())
-                .productName(i.getProduct().getName())
-                .quantity(i.getQuantity())
-                .unitPrice(i.getUnitPrice())
-                .totalPrice(i.getTotalPrice())
-                .build()).collect(Collectors.toList());
+        // Guard: product may be null if hard-deleted after order was placed
+        List<OrderItemDTO> items = o.getOrderItems().stream()
+                .map(i -> {
+                    String pName = i.getProductName();        // always persisted as snapshot
+                    Long pId = (i.getProduct() != null) ? i.getProduct().getId() : null;
+                    return OrderItemDTO.builder()
+                            .productId(pId)
+                            .productName(pName)
+                            .quantity(i.getQuantity())
+                            .unitPrice(i.getUnitPrice())
+                            .totalPrice(i.getTotalPrice())
+                            .build();
+                })
+                .collect(Collectors.toList());
 
         return OrderDTO.builder()
                 .id(o.getId())

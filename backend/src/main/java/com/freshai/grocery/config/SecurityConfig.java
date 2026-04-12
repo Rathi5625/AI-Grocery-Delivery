@@ -48,8 +48,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                         // Admin — must have ADMIN role
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        // User — must be authenticated
+                        // User — must be authenticated (both /api/user/* and /api/users/* aliases)
                         .requestMatchers("/api/user/**").authenticated()
+                        .requestMatchers("/api/users/**").authenticated()
                         // Cart & Orders — must be authenticated
                         .requestMatchers("/api/cart/**").authenticated()
                         .requestMatchers("/api/orders/**").authenticated()

@@ -17,6 +17,7 @@ export default function ProductDetailPage() {
     const [quantity, setQuantity] = useState(1);
     const [loading, setLoading] = useState(true);
     const [adding, setAdding] = useState(false);
+    const [imgError, setImgError] = useState(false);
     const { addItem } = useCart();
     const { isAuthenticated } = useAuth();
 
@@ -63,8 +64,12 @@ export default function ProductDetailPage() {
 
             <div className="product-detail__layout">
                 {/* Image */}
-                <motion.div className="product-detail__image-wrap" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4 }}>
-                    <img src={product.imageUrl || 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?w=600'} alt={product.name} className="product-detail__image" />
+                <motion.div className="product-detail__image-wrap" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4 }} style={{ position: 'relative', overflow: 'hidden', backgroundColor: '#f3f4f6', minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-lg)' }}>
+                    {imgError || !product.imageUrl ? (
+                        <RiLeafLine size={80} style={{ color: '#9ca3af', opacity: 0.3 }} />
+                    ) : (
+                        <img src={product.imageUrl} alt={product.name} className="product-detail__image" style={{ objectFit: 'cover', width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }} onError={() => setImgError(true)} />
+                    )}
                 </motion.div>
 
                 {/* Info */}

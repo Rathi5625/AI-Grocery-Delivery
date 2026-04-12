@@ -38,26 +38,40 @@ import java.util.Map;
  * └─────────────────────────────────────────────────────────────────────────┘
  */
 @RestController
-@RequestMapping("/api/user")
 @RequiredArgsConstructor
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:5173"}, allowCredentials = "true")
 public class UserProfileController {
 
     private final UserService    userService;
     private final OtpService     otpService;
     private final UserRepository userRepository;
 
+    // Supports both /api/user/* (legacy) and /api/users/* (new)
+    private static final String BASE = "/api/user";
+
     // ── PROFILE ────────────────────────────────────────────────────────────
 
-    /** GET /api/user/profile */
-    @GetMapping("/profile")
+    /** GET /api/user/profile  AND  /api/users/profile */
+    @GetMapping({"/api/user/profile", "/api/users/profile"})
     public ResponseEntity<ApiResponse<UserProfileDTO>> getProfile(
             @AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.ok(ApiResponse.ok(userService.getProfile(userDetails.getUsername())));
     }
 
-    /** PUT /api/user/profile/update */
-    @PutMapping("/profile/update")
+    /** PUT /api/user/profile/update  AND  /api/users/profile */
+    @PutMapping({"/api/user/profile/update", "/api/users/profile"})
     public ResponseEntity<ApiResponse<UserProfileDTO>> updateProfile(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Valid @RequestBody UpdateProfileRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(
+            userService.updateProfile(userDetails.getUsername(), request),
+            "Profile updated successfully"
+        ));
+    }
+
+    /** PATCH /api/user/profile — quick update for non-OTP fields (firstName, lastName, profileImage) */
+    @PatchMapping({"/api/user/profile", "/api/users/profile"})
+    public ResponseEntity<ApiResponse<UserProfileDTO>> patchProfile(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody UpdateProfileRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(
@@ -72,7 +86,7 @@ public class UserProfileController {
      * POST /api/user/send-otp
      * Purpose values: EMAIL_VERIFY | EMAIL_CHANGE | PHONE_CHANGE | PASSWORD_CHANGE
      */
-    @PostMapping("/send-otp")
+    @PostMapping({"/api/user/send-otp", "/api/users/send-otp"})
     public ResponseEntity<ApiResponse<Map<String, String>>> sendOtp(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody OtpRequest request) {
@@ -94,7 +108,7 @@ public class UserProfileController {
      * Standalone OTP verification — use before calling updateProfile.
      * Does NOT apply any change; just confirms the OTP is valid.
      */
-    @PostMapping("/verify-otp")
+    @PostMapping({"/api/user/verify-otp", "/api/users/verify-otp"})
     public ResponseEntity<ApiResponse<Map<String, Object>>> verifyOtp(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody OtpVerifyRequest request) {
@@ -114,7 +128,7 @@ public class UserProfileController {
      * Marks the user's email as verified (emailVerified = true).
      * Call this after the user enters the OTP from the registration welcome email.
      */
-    @PostMapping("/verify-email")
+    @PostMapping({"/api/user/verify-email", "/api/users/verify-email"})
     public ResponseEntity<ApiResponse<Map<String, Object>>> verifyEmail(
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestBody Map<String, String> payload) {
@@ -123,18 +137,14 @@ public class UserProfileController {
         if (otpCode == null || otpCode.isBlank()) {
             throw new BadRequestException("otpCode is required.");
         }
-
         User user = getUser(userDetails.getUsername());
-
         if (Boolean.TRUE.equals(user.getEmailVerified())) {
             return ResponseEntity.ok(ApiResponse.ok(
                 Map.of("emailVerified", true),
                 "Email is already verified."
             ));
         }
-
         userService.verifyEmail(user, otpCode);
-
         return ResponseEntity.ok(ApiResponse.ok(
             Map.of("emailVerified", true),
             "Email verified successfully! 🎉"
@@ -144,7 +154,7 @@ public class UserProfileController {
     // ── ADDRESSES ──────────────────────────────────────────────────────────
 
     /** POST /api/user/addresses */
-    @PostMapping("/addresses")
+    @PostMapping({"/api/user/addresses", "/api/users/addresses"})
     public ResponseEntity<ApiResponse<AddressDTO>> addAddress(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody AddressDTO dto) {
@@ -155,7 +165,7 @@ public class UserProfileController {
     }
 
     /** PUT /api/user/addresses/{id} */
-    @PutMapping("/addresses/{id}")
+    @PutMapping({"/api/user/addresses/{id}", "/api/users/addresses/{id}"})
     public ResponseEntity<ApiResponse<AddressDTO>> updateAddress(
             @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable Long id,
@@ -167,7 +177,7 @@ public class UserProfileController {
     }
 
     /** DELETE /api/user/addresses/{id} */
-    @DeleteMapping("/addresses/{id}")
+    @DeleteMapping({"/api/user/addresses/{id}", "/api/users/addresses/{id}"})
     public ResponseEntity<ApiResponse<Map<String, String>>> deleteAddress(
             @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable Long id) {

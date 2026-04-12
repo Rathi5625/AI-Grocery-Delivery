@@ -11,6 +11,4 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     /** Used by admin dashboard — counts users with isActive = true/false */
     long countByIsActive(boolean isActive);
-
-    Object countByIsActive1(boolean b);
 }

@@ -18,16 +18,17 @@ spring:
       idle-timeout: 600000
       connection-test-query: SELECT 1
 
-  # ── SQL Init: data.sql runs AFTER Hibernate creates tables ─────────────
+  # ── SQL Init: schema.sql + data.sql run AFTER Hibernate creates tables ───
   sql:
     init:
       mode: always
-      data-locations: classpath:data.sql
+      schema-locations: classpath:schema.sql
+      data-locations:   classpath:data.sql
 
   # ── JPA ──────────────────────────────────────────────────────
   jpa:
     hibernate:
-      ddl-auto: create   # Drops & recreates tables from JPA entities on every startup
+      ddl-auto: none     # Schema is managed by schema.sql; Hibernate only validates
     show-sql: false
     defer-datasource-initialization: true
     properties:
