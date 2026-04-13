@@ -7,8 +7,15 @@ target/
 # Logs
 *.log
 
-# Environment
+# ── Secrets & Environment Variables ─────────────────────────────────────────
+# NEVER commit these files
 .env
+.env.local
+.env.*.local
+
+# Spring Boot local profile (contains real credentials)
+application-local.yml
+**/application-local.yml
 
 # OS files
 .DS_Store

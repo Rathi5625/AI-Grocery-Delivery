@@ -7,9 +7,9 @@ spring:
 
   # ── Database ─────────────────────────────────────────────────
   datasource:
-    url: jdbc:mysql://localhost:3306/grocery_clean?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
-    username: root
-    password: '@Parth@657825op@'
+    url: ${DB_URL:jdbc:mysql://localhost:3306/grocery_clean?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
@@ -67,9 +67,9 @@ spring:
 # ── App Config ────────────────────────────────────────────────
 app:
   jwt:
-    secret: FreshAI2024SecretKeyForJWTTokenGenerationMustBe256BitsLongAtLeast!!
-    expiration-ms: 900000           # 15 minutes
-    refresh-expiration-ms: 604800000  # 7 days
+    secret: ${JWT_SECRET}
+    expiration-ms: ${JWT_EXPIRATION_MS:900000}           # 15 minutes (override via env)
+    refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}  # 7 days
 
   cors:
     allowed-origins: http://localhost:5173,http://localhost:3000
