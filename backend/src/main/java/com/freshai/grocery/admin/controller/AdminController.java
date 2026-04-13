@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -112,17 +113,21 @@ public class AdminController {
     // ── PRODUCTS ── ────────────────────────────────────────────────────────
 
     @GetMapping("/products")
+    @Transactional(readOnly = true)
     public ResponseEntity<ApiResponse<List<ProductDTO>>> getAllProducts() {
-        List<ProductDTO> products = productRepository.findAll().stream()
+        // Uses JOIN FETCH so category is eagerly loaded — avoids LazyInitializationException
+        List<ProductDTO> products = productRepository.findAllWithCategory().stream()
                 .map(this::toProductDTO)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(ApiResponse.ok(products));
     }
 
     @GetMapping("/products/low-stock")
+    @Transactional(readOnly = true)
     public ResponseEntity<ApiResponse<List<ProductDTO>>> getLowStockProducts(
             @RequestParam(defaultValue = "10") int threshold) {
-        List<ProductDTO> products = productRepository.findLowStockProducts(threshold).stream()
+        // Uses JOIN FETCH so category is eagerly loaded — avoids LazyInitializationException
+        List<ProductDTO> products = productRepository.findLowStockWithCategory(threshold).stream()
                 .map(this::toProductDTO)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(ApiResponse.ok(products,
@@ -147,6 +152,7 @@ public class AdminController {
     }
 
     @PutMapping("/products/{id}/stock")
+    @Transactional
     public ResponseEntity<ApiResponse<ProductDTO>> updateProductStock(
             @PathVariable Long id,
             @RequestBody Map<String, Integer> payload) {

@@ -1,25 +1,10 @@
 -- ============================================================
--- FreshAI Grocery — Database Schema v3
--- Aligned with JPA entity definitions
+-- FreshAI Grocery — Database Schema v4
+-- Uses CREATE TABLE IF NOT EXISTS (no DROP) so data persists
+-- across restarts. Admin-added products are preserved.
 -- ============================================================
 
 SET FOREIGN_KEY_CHECKS = 0;
-
--- Drop all tables to ensure a clean rebuild (safe for dev — data.sql reseeds)
-DROP TABLE IF EXISTS delivery_slots;
-DROP TABLE IF EXISTS order_items;
-DROP TABLE IF EXISTS orders;
-DROP TABLE IF EXISTS cart_items;
-DROP TABLE IF EXISTS cart;
-DROP TABLE IF EXISTS otp_verification;
-DROP TABLE IF EXISTS addresses;
-DROP TABLE IF EXISTS products;
-DROP TABLE IF EXISTS categories;
-DROP TABLE IF EXISTS users;
-
-SET FOREIGN_KEY_CHECKS = 1;
-SET FOREIGN_KEY_CHECKS = 0;
-
 
 -- ── 1. USERS ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
@@ -45,7 +30,6 @@ CREATE TABLE IF NOT EXISTS users (
 
 
 -- ── 2. CATEGORIES ───────────────────────────────────────────
--- No parent_id column (removed from entity in Step 2)
 CREATE TABLE IF NOT EXISTS categories (
     id          BIGINT          NOT NULL AUTO_INCREMENT,
     name        VARCHAR(100)    NOT NULL,
@@ -66,7 +50,6 @@ CREATE TABLE IF NOT EXISTS categories (
 
 
 -- ── 3. ADDRESSES (needs: users) ─────────────────────────────
--- Maps to UserAddress entity. Some addresses columns differ from schema v1.
 CREATE TABLE IF NOT EXISTS addresses (
     id              BIGINT          NOT NULL AUTO_INCREMENT,
     user_id         BIGINT          NOT NULL,
@@ -123,7 +106,6 @@ CREATE TABLE IF NOT EXISTS products (
 
 
 -- ── 5a. CART (one per user) ─────────────────────────────────
--- Maps to Cart entity (id, user_id, total_amount)
 CREATE TABLE IF NOT EXISTS cart (
     id              BIGINT          NOT NULL AUTO_INCREMENT,
     user_id         BIGINT          NOT NULL,
@@ -139,7 +121,6 @@ CREATE TABLE IF NOT EXISTS cart (
 
 
 -- ── 5b. CART_ITEMS (needs: cart, products) ──────────────────
--- Maps to CartItem entity
 CREATE TABLE IF NOT EXISTS cart_items (
     id          BIGINT          NOT NULL AUTO_INCREMENT,
     cart_id     BIGINT          NOT NULL,
@@ -158,7 +139,6 @@ CREATE TABLE IF NOT EXISTS cart_items (
 
 
 -- ── 6. ORDERS (needs: users) ────────────────────────────────
--- delivery_address is a JSON/text snapshot (not a FK) for historical accuracy
 CREATE TABLE IF NOT EXISTS orders (
     id                 BIGINT        NOT NULL AUTO_INCREMENT,
     order_number       VARCHAR(30)   NOT NULL,
@@ -217,7 +197,6 @@ CREATE TABLE IF NOT EXISTS order_items (
 
 
 -- ── 8. OTP_VERIFICATION (needs: users) ──────────────────────
--- Aligned with OtpVerification entity (otp_id, otp_code, otp_purpose, target_value, is_verified, attempt_count)
 CREATE TABLE IF NOT EXISTS otp_verification (
     otp_id        BIGINT      NOT NULL AUTO_INCREMENT,
     user_id       BIGINT      NOT NULL,
@@ -242,11 +221,8 @@ CREATE TABLE IF NOT EXISTS otp_verification (
     INDEX idx_otp_expiry       (expiry_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-SET FOREIGN_KEY_CHECKS = 1;
-
 
 -- ── 9. DELIVERY_SLOTS (needs: orders) ────────────────────────
--- Maps to DeliverySlot entity (Order.@OneToOne deliverySlot)
 CREATE TABLE IF NOT EXISTS delivery_slots (
     id              BIGINT      NOT NULL AUTO_INCREMENT,
     order_id        BIGINT      DEFAULT NULL,
@@ -267,6 +243,5 @@ CREATE TABLE IF NOT EXISTS delivery_slots (
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ============================================================
--- END OF SCHEMA v3
--- Run data.sql next to seed categories + products + admin user
+-- END OF SCHEMA v4  (CREATE IF NOT EXISTS — data safe on restart)
 -- ============================================================

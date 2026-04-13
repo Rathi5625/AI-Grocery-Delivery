@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getProducts, searchProducts, getCategories } from '../api/productApi';
+import API from '../api/axios';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import ProductCard from '../components/product/ProductCard';
 import { ProductGridSkeleton } from '../components/ui/Skeletons';
 import toast from 'react-hot-toast';
-import { FiFilter, FiX, FiChevronDown, FiChevronUp } from 'react-icons/fi';
+import { FiFilter, FiX } from 'react-icons/fi';
 import { RiLeafLine } from 'react-icons/ri';
 
 export default function ProductListPage() {
@@ -39,21 +40,24 @@ export default function ProductListPage() {
     setLoading(true);
     try {
       const catRes = await getCategories();
-      setCategories(catRes.data || []);
+      setCategories(Array.isArray(catRes.data) ? catRes.data : []);
+
       let res;
       if (query) {
         res = await searchProducts(query, page, 16);
+      } else if (selectedCat) {
+        res = await API.get(`/products/category/${selectedCat}?page=${page}&size=16`);
       } else {
         res = await getProducts(page, 16, sortBy, direction);
       }
+
       const pageData = res.data;
-      let content = pageData?.content ?? [];
-      /* client-side filter by category / organic when not query mode */
-      if (!query && selectedCat) content = content.filter(p => p.categoryId === selectedCat);
+      // Spring Page: { content, totalPages, totalElements } OR raw array
+      let content    = pageData?.content ?? (Array.isArray(pageData) ? pageData : []);
       if (organicOnly) content = content.filter(p => p.isOrganic);
       setProducts(content);
       setTotalPages(pageData?.totalPages ?? 0);
-      setTotalElements(pageData?.totalElements ?? 0);
+      setTotalElements(pageData?.totalElements ?? content.length);
     } catch (err) {
       console.error('Products load error:', err);
       toast.error(err.userMessage || 'Could not load products — is the backend running?');

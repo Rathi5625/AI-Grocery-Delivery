@@ -36,4 +36,12 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     @Query("SELECT COALESCE(SUM(p.stockQuantity), 0) FROM Product p WHERE p.isActive = true")
     Long sumTotalStock();
+
+    /** Admin: fetch ALL products with category eagerly loaded (avoids LazyInitializationException) */
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category ORDER BY p.name ASC")
+    List<Product> findAllWithCategory();
+
+    /** Admin: low-stock products with category eagerly loaded */
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category WHERE p.isActive = true AND p.stockQuantity <= :threshold ORDER BY p.stockQuantity ASC")
+    List<Product> findLowStockWithCategory(@Param("threshold") int threshold);
 }

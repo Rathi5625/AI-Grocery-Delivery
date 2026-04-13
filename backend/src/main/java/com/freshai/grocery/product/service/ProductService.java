@@ -90,8 +90,7 @@ public class ProductService {
     public void deleteProduct(Long id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
-        product.setIsActive(false);
-        productRepository.save(product);
+        productRepository.delete(product);
     }
 
     private ProductDTO toDTO(Product p) {
@@ -137,19 +136,34 @@ public class ProductService {
         product.setDiscountPrice(dto.getDiscountPrice());
         product.setUnit(dto.getUnit());
         product.setWeight(dto.getWeight());
-        product.setStockQuantity(dto.getStockQuantity());
+        product.setStockQuantity(dto.getStockQuantity() != null ? dto.getStockQuantity() : 0);
         product.setImageUrl(dto.getImageUrl());
         product.setSustainabilityScore(dto.getSustainabilityScore());
-        product.setIsOrganic(dto.getIsOrganic());
-        product.setIsFeatured(dto.getIsFeatured());
-        if (dto.getIsActive() != null) product.setIsActive(dto.getIsActive());
+        product.setIsOrganic(dto.getIsOrganic() != null ? dto.getIsOrganic() : false);
+        product.setIsFeatured(dto.getIsFeatured() != null ? dto.getIsFeatured() : false);
+        product.setIsActive(dto.getIsActive() != null ? dto.getIsActive() : true);
         product.setOrigin(dto.getOrigin());
         product.setNutritionalInfo(dto.getNutritionalInfo());
         product.setCarbonFootprint(dto.getCarbonFootprint());
         product.setFreshnessDays(dto.getFreshnessDays());
+
+        // Generate slug from name if not a persisted entity yet (id == null) or if name
+        // changed
+        if (product.getId() == null || (dto.getName() != null && !dto.getName().equals(product.getName()))) {
+            String baseSlug = dto.getName().toLowerCase()
+                    .replaceAll("[^a-z0-9]+", "-")
+                    .replaceAll("(^-|-$)", "");
+            // Make slug unique by appending timestamp suffix if product is new
+            if (product.getId() == null) {
+                product.setSlug(baseSlug + "-" + System.currentTimeMillis() % 100000);
+            } else {
+                product.setSlug(baseSlug);
+            }
+        }
+
         if (dto.getCategoryId() != null) {
             Category category = categoryRepository.findById(dto.getCategoryId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + dto.getCategoryId()));
             product.setCategory(category);
         }
     }

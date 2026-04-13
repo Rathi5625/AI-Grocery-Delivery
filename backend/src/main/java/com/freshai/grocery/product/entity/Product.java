@@ -86,8 +86,10 @@ public class Product {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
-        if (slug == null || slug.isEmpty()) {
-            slug = name.toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("-+$", "");
+        // Only auto-generate slug if not already set by the service layer
+        if (slug == null || slug.isBlank()) {
+            slug = name.toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("(^-|-$)", "")
+                    + "-" + (System.currentTimeMillis() % 100000);
         }
     }
 
