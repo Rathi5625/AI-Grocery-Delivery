@@ -24,7 +24,7 @@ public class CartService {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public CartDTO getCart(String email) {
         User user = getUser(email);
         Cart cart = cartRepository.findByUserId(user.getId())

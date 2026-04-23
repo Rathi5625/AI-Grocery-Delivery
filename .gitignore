@@ -8,10 +8,15 @@ target/
 *.log
 
 # ── Secrets & Environment Variables ─────────────────────────────────────────
-# NEVER commit these files
+# NEVER commit these files — they contain real credentials
 .env
 .env.local
 .env.*.local
+backend/.env
+scripts/.env
+
+# .env.example IS safe to commit (placeholder values only)
+# DO NOT add .env.example here
 
 # Spring Boot local profile (contains real credentials)
 application-local.yml

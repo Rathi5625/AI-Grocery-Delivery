@@ -23,25 +23,30 @@ import java.time.LocalDateTime;
  *
  * Supported flows
  * ───────────────
- * 1. EMAIL_VERIFY     → OTP sent to registered email; on verify → user.emailVerified = true
- * 2. EMAIL_CHANGE     → OTP sent to the NEW email; on verify → user.email is updated
- * 3. PHONE_CHANGE     → OTP sent to new phone (SMS) or current email; on verify → user.phone updated
- * 4. PASSWORD_CHANGE  → OTP sent to current email; on verify → password hash updated
- * 5. PASSWORD_RESET   → Unauthenticated flow; OTP sent to account email; on verify → new password set
+ * 1. EMAIL_VERIFY → OTP sent to registered email; on verify →
+ * user.emailVerified = true
+ * 2. EMAIL_CHANGE → OTP sent to the NEW email; on verify → user.email is
+ * updated
+ * 3. PHONE_CHANGE → OTP sent to new phone (SMS) or current email; on verify →
+ * user.phone updated
+ * 4. PASSWORD_CHANGE → OTP sent to current email; on verify → password hash
+ * updated
+ * 5. PASSWORD_RESET → Unauthenticated flow; OTP sent to account email; on
+ * verify → new password set
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class OtpService {
 
-    private static final int  OTP_EXPIRY_MINUTES = 5;
-    private static final int  MAX_OTP_PER_HOUR   = 5;   // rate-limit per user per purpose
-    private static final int  MAX_ATTEMPTS        = 3;
-    private static final SecureRandom RANDOM      = new SecureRandom();
+    private static final int OTP_EXPIRY_MINUTES = 5;
+    private static final int MAX_OTP_PER_HOUR = 5; // rate-limit per user per purpose
+    private static final int MAX_ATTEMPTS = 3;
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final OtpRepository otpRepository;
-    private final EmailService  emailService;
-    private final SmsService    smsService;
+    private final EmailService emailService;
+    private final SmsService smsService;
 
     // ═══════════════════════════════════════════════════════════════════════
     // GENERATE & SEND
@@ -87,6 +92,8 @@ public class OtpService {
 
     /**
      * Send email-verification OTP right after registration.
+     * OTP is always persisted to DB. Email delivery failure is logged but does NOT
+     * prevent the OTP record from being saved (user can resend from verify page).
      */
     @Transactional
     public void sendEmailVerificationOtp(User user) {
@@ -95,10 +102,28 @@ public class OtpService {
 
         String code = generateCode();
         OtpVerification otp = buildOtp(user.getId(), code, OtpPurpose.EMAIL_VERIFY, user.getEmail());
-        otpRepository.save(otp);
+        otpRepository.save(otp); // always save first
 
-        emailService.sendEmailVerificationOtp(user.getEmail(), user.getFirstName(), code);
-        log.info("Email-verification OTP sent: userId={}", user.getId());
+        // ALWAYS print OTP to console first (fail-safe — visible even if SMTP fails)
+        System.out.println("================================================");
+        System.out.println("[OTP GENERATED] Email : " + user.getEmail());
+        System.out.println("[OTP GENERATED] Code  : " + code);
+        System.out.println("[OTP GENERATED] Purpose: EMAIL_VERIFY");
+        System.out.println("================================================");
+        log.info("[OTP] Generated code for userId={} email={}", user.getId(), user.getEmail());
+
+        // Email is best-effort — OTP is already in DB so user can verify even if SMTP
+        // fails
+        try {
+            emailService.sendEmailVerificationOtp(user.getEmail(), user.getFirstName(), code);
+            log.info("[OTP] Email-verification OTP sent successfully: userId={}", user.getId());
+            System.out.println("[OTP EMAIL] Successfully dispatched to: " + user.getEmail());
+        } catch (Exception e) {
+            log.warn("[OTP] Email delivery failed for userId={}: {}", user.getId(), e.getMessage());
+            log.error("[OTP] SMTP Error details:", e);
+            System.err.println("[OTP EMAIL FAILED] " + e.getMessage());
+            System.out.println("[OTP FALLBACK] Check console above for the OTP code — it's saved in DB.");
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -127,7 +152,8 @@ public class OtpService {
 
     /**
      * Verify OTP for an unauthenticated user (PASSWORD_RESET flow).
-     * Looks up by user ID only — caller must supply the User object fetched by email.
+     * Looks up by user ID only — caller must supply the User object fetched by
+     * email.
      */
     @Transactional
     public OtpVerification verifyOtpForPasswordReset(Long userId, String otpCode) {
@@ -172,8 +198,8 @@ public class OtpService {
             return OtpPurpose.valueOf(raw.toUpperCase().trim());
         } catch (IllegalArgumentException e) {
             throw new BadRequestException(
-                "Invalid OTP purpose '" + raw + "'. Valid values: EMAIL_VERIFY, EMAIL_CHANGE, " +
-                "PHONE_CHANGE, PASSWORD_CHANGE, PASSWORD_RESET");
+                    "Invalid OTP purpose '" + raw + "'. Valid values: EMAIL_VERIFY, EMAIL_CHANGE, " +
+                            "PHONE_CHANGE, PASSWORD_CHANGE, PASSWORD_RESET");
         }
     }
 
@@ -195,7 +221,8 @@ public class OtpService {
                     throw new BadRequestException("targetValue must be a valid phone number for PHONE_CHANGE.");
                 }
             }
-            default -> { /* no targetValue needed */ }
+            default -> {
+                /* no targetValue needed */ }
         }
     }
 
@@ -204,7 +231,7 @@ public class OtpService {
                 userId, purpose, LocalDateTime.now().minusHours(1));
         if (recentCount >= MAX_OTP_PER_HOUR) {
             throw new BadRequestException(
-                "Too many OTP requests. Please wait before trying again.");
+                    "Too many OTP requests. Please wait before trying again.");
         }
     }
 
@@ -252,7 +279,7 @@ public class OtpService {
         }
         if (otp.isMaxAttemptsExceeded(MAX_ATTEMPTS)) {
             throw new BadRequestException(
-                "Maximum verification attempts exceeded. Please request a new OTP.");
+                    "Maximum verification attempts exceeded. Please request a new OTP.");
         }
 
         // Increment attempt before checking — prevents timing oracle
@@ -262,7 +289,7 @@ public class OtpService {
         if (!otp.getOtpCode().equals(inputCode)) {
             int remaining = MAX_ATTEMPTS - otp.getAttemptCount();
             throw new BadRequestException(
-                "Invalid OTP. " + Math.max(0, remaining) + " attempt(s) remaining.");
+                    "Invalid OTP. " + Math.max(0, remaining) + " attempt(s) remaining.");
         }
     }
 }

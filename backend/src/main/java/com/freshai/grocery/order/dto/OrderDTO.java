@@ -12,21 +12,22 @@ import java.util.List;
 @Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class OrderDTO {
-    private Long              id;
-    private String            orderNumber;
-    private Long              userId;
-    private String            userEmail;      // for admin view
-    private BigDecimal        subtotal;
-    private BigDecimal        deliveryFee;
-    private BigDecimal        discountAmount;
-    private BigDecimal        totalAmount;
-    private String            status;
-    private String            paymentMethod;
-    private String            paymentStatus;
-    private String            deliveryAddress;
-    private String            notes;
-    private BigDecimal        carbonSaved;
+    private Long id;
+    private String orderNumber;
+    private Long userId;
+    private String userEmail; // for admin view
+    private String customerName; // for admin view
+    private BigDecimal subtotal;
+    private BigDecimal deliveryFee;
+    private BigDecimal discountAmount;
+    private BigDecimal totalAmount;
+    private String status;
+    private String paymentMethod;
+    private String paymentStatus;
+    private String deliveryAddress;
+    private String notes;
+    private BigDecimal carbonSaved;
     private List<OrderItemDTO> items;
-    private LocalDateTime     createdAt;
-    private LocalDateTime     updatedAt;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }

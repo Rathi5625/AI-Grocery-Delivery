@@ -3,8 +3,8 @@ import toast from 'react-hot-toast';
 import API from '../api/axios';
 
 /* ── helpers ── */
-const getProfile    = ()     => API.get('/user/profile');
-const patchProfile  = (data) => API.patch('/user/profile', data);
+const getProfile    = ()     => API.get('/user/me');
+const patchProfile  = (data) => API.put('/user/update', data);
 const sendOtp       = (p)    => API.post('/user/send-otp', p);
 const verifyOtp     = (p)    => API.post('/user/verify-otp', p);
 const addAddress    = (d)    => API.post('/user/addresses', d);
@@ -12,9 +12,11 @@ const updateAddress = (id,d) => API.put(`/user/addresses/${id}`, d);
 const deleteAddress = (id)   => API.delete(`/user/addresses/${id}`);
 
 export default function useProfile() {
-  const [profile, setProfile]         = useState(null);
+  const [profile, setProfile]         = useState({ addresses: [], recentOrders: [] });
   const [loading, setLoading]         = useState(true);
   const [saving, setSaving]           = useState(false);
+  const [loadingAddresses, setLoadingAddresses] = useState(false);
+  const [loadingOrders, setLoadingOrders] = useState(false);
   const [otpSent, setOtpSent]         = useState(false);
   const [otpPurpose, setOtpPurpose]   = useState(null);
   const [otpTarget, setOtpTarget]     = useState(null);
@@ -22,16 +24,43 @@ export default function useProfile() {
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpCode, setOtpCode]         = useState('');
 
-  /* ── fetch ── */
+  /* ── fetch profile ── */
   const fetchProfile = useCallback(async () => {
     try {
       setLoading(true);
       const res = await getProfile();
-      setProfile(res.data);
+      setProfile(p => ({ ...p, ...res.data }));
     } catch (err) {
       toast.error(err?.userMessage || 'Failed to load profile.');
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  /* ── fetch addresses ── */
+  const fetchAddresses = useCallback(async () => {
+    try {
+      setLoadingAddresses(true);
+      const res = await API.get('/user/addresses');
+      setProfile(p => ({ ...p, addresses: res.data || [] }));
+    } catch (err) {
+      toast.error('Failed to load addresses');
+    } finally {
+      setLoadingAddresses(false);
+    }
+  }, []);
+
+  /* ── fetch orders ── */
+  const fetchOrders = useCallback(async () => {
+    try {
+      setLoadingOrders(true);
+      const res = await API.get('/orders');
+      // page content unwrapping
+      setProfile(p => ({ ...p, recentOrders: res.data?.content || [] }));
+    } catch (err) {
+      toast.error('Failed to load orders');
+    } finally {
+      setLoadingOrders(false);
     }
   }, []);
 
@@ -123,7 +152,7 @@ export default function useProfile() {
     try {
       setSaving(true);
       await addAddress(data);
-      await fetchProfile();
+      await fetchAddresses();
       toast.success('Address added!');
       return true;
     } catch (err) {
@@ -136,7 +165,7 @@ export default function useProfile() {
     try {
       setSaving(true);
       await updateAddress(id, data);
-      await fetchProfile();
+      await fetchAddresses();
       toast.success('Address updated!');
       return true;
     } catch (err) {
@@ -149,7 +178,7 @@ export default function useProfile() {
     try {
       setSaving(true);
       await deleteAddress(id);
-      await fetchProfile();
+      await fetchAddresses();
       toast.success('Address removed.');
       return true;
     } catch (err) {
@@ -159,7 +188,7 @@ export default function useProfile() {
   };
 
   return {
-    profile, loading, saving, fetchProfile, saveBasicInfo,
+    profile, loading, loadingAddresses, loadingOrders, saving, fetchProfile, fetchAddresses, fetchOrders, saveBasicInfo,
     otpSent, otpPurpose, otpTarget, otpLoading, otpVerified,
     requestOtp, confirmOtp, saveSensitiveField, resetOtp,
     addAddr, updateAddr, deleteAddr,

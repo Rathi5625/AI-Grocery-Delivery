@@ -169,9 +169,14 @@ export default function UserProfilePage() {
   const [showAddrForm, setShowAddrForm] = useState(false);
   const [editingAddr, setEditingAddr]   = useState(null);
 
-  const initials = profile
+  const initials = profile?.firstName
     ? `${profile.firstName?.[0] ?? ''}${profile.lastName?.[0] ?? ''}`.toUpperCase()
     : user?.firstName?.[0]?.toUpperCase() ?? 'U';
+
+  useEffect(() => {
+    if (activeTab === 'addresses') hook.fetchAddresses();
+    if (activeTab === 'orders') hook.fetchOrders();
+  }, [activeTab]);
 
   if (loading) {
     return (
@@ -396,7 +401,7 @@ export default function UserProfilePage() {
                   {profile.recentOrders.map(o => (
                     <div key={o.id} className="order-history-card">
                       <div className="order-history-card__header">
-                        <span className="order-history-card__id">Order #{o.id}</span>
+                        <span className="order-history-card__id">Order #{o.orderNumber}</span>
                         <span className={`order-history-card__status order-history-card__status--${(o.status || 'pending').toLowerCase()}`}>
                           {o.status}
                         </span>

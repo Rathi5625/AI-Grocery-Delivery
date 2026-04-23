@@ -1,7 +1,7 @@
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
@@ -13,11 +13,21 @@ import CheckoutPage from './pages/CheckoutPage';
 import OrderSuccessPage from './pages/OrderSuccessPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import VerifyOtpPage from './pages/VerifyOtpPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import AdminDashboard from './pages/AdminDashboard';
 import UserProfilePage from './pages/UserProfilePage';
 import './index.css';
 
+function ProtectedRoute({ children, adminOnly = false }) {
+  const { isAuthenticated, isAdmin, loading } = useAuth();
+  
+  if (loading) return null; // Avoid redirecting while checking auth status
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (adminOnly && !isAdmin) return <Navigate to="/" replace />;
+  
+  return children;
+}
 function AppLayout({ children, showNav = true, showFooter = true }) {
   return (
     <>
@@ -37,10 +47,15 @@ function AnimatedRoutes() {
         {/* ── Auth pages (no layout) ── */}
         <Route path="/login"            element={<LoginPage />} />
         <Route path="/register"         element={<RegisterPage />} />
+        <Route path="/verify-otp"       element={<VerifyOtpPage />} />
         <Route path="/forgot-password"  element={<ForgotPasswordPage />} />
 
         {/* ── Admin (no footer) ── */}
-        <Route path="/admin" element={<AppLayout showFooter={false}><AdminDashboard /></AppLayout>} />
+        <Route path="/admin" element={
+          <ProtectedRoute adminOnly={true}>
+            <AppLayout showFooter={false}><AdminDashboard /></AppLayout>
+          </ProtectedRoute>
+        } />
 
         {/* ── Main pages ── */}
         <Route path="/"              element={<AppLayout><HomePage /></AppLayout>} />

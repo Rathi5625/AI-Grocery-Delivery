@@ -37,13 +37,11 @@ export function AuthProvider({ children }) {
     };
 
     /**
-     * Register: same structure as login response
+     * Register: backend returns ApiResponse(success=true, message=...)
      */
     const signup = async (data) => {
         const res = await registerApi(data);
-        const { accessToken, refreshToken, user: userInfo } = res.data;
-        persist(accessToken, refreshToken, userInfo);
-        return userInfo;
+        return res; // No auto-login on register
     };
 
     const logout = useCallback(() => {

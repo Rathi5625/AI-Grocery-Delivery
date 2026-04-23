@@ -15,6 +15,8 @@ export default function RegisterPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        if (loading) return; // Fix double API call bug
         setError('');
 
         if (!form.firstName || !form.lastName || !form.email || !form.password) {
@@ -30,11 +32,13 @@ export default function RegisterPage() {
         setLoading(true);
         try {
             await signup(form);
-            toast.success('Account created!', { icon: '🎉' });
-            navigate('/');
+            toast.success('Account created successfully!', { icon: '🎉' });
+            navigate(`/verify-otp?email=${encodeURIComponent(form.email)}`);
         } catch (err) {
-            setError(err.userMessage || 'Registration failed. Please try again.');
-        } finally { setLoading(false); }
+            setError(err.userMessage || 'Something went wrong. Please try again.');
+        } finally { 
+            setLoading(false); 
+        }
     };
 
     return (

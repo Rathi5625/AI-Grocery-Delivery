@@ -22,9 +22,9 @@ import java.util.Map;
 /**
  * Authentication endpoints — all responses use ApiResponse<T> envelope.
  *
- * POST /api/auth/login    → { accessToken, refreshToken, expiresIn, user }
+ * POST /api/auth/login → { accessToken, refreshToken, expiresIn, user }
  * POST /api/auth/register → { accessToken, refreshToken, expiresIn, user }
- * POST /api/auth/refresh  → { accessToken, expiresIn }
+ * POST /api/auth/refresh → { accessToken, expiresIn }
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -32,11 +32,11 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
-    private final UserRepository        userRepository;
-    private final PasswordEncoder       passwordEncoder;
-    private final JwtTokenProvider      tokenProvider;
-    private final EmailService          emailService;
-    private final OtpService            otpService;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtTokenProvider tokenProvider;
+    private final EmailService emailService;
+    private final OtpService otpService;
 
     /* ── LOGIN ─────────────────────────────────────────────────────────── */
 
@@ -44,15 +44,21 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> login(
             @Valid @RequestBody LoginRequest request) {
 
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
-
+        // Fetch user FIRST so we can check status before authentication
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new BadRequestException("User not found"));
+                .orElseThrow(() -> new BadRequestException("Invalid email or password"));
 
         if (Boolean.FALSE.equals(user.getIsActive())) {
             throw new BadRequestException("Account is disabled. Contact support.");
         }
+
+        // Block login if email not yet verified
+        if (Boolean.FALSE.equals(user.getEmailVerified())) {
+            throw new BadRequestException("Please verify your email before login");
+        }
+
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
 
         String accessToken  = tokenProvider.generateToken(authentication);
         String refreshToken = tokenProvider.generateRefreshToken(user.getEmail());
@@ -64,7 +70,7 @@ public class AuthController {
     /* ── REGISTER ──────────────────────────────────────────────────────── */
 
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<AuthResponse>> register(
+    public ResponseEntity<ApiResponse> register(
             @Valid @RequestBody RegisterRequest request) {
 
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -89,21 +95,30 @@ public class AuthController {
                 .phoneVerified(false)
                 .build();
 
-        userRepository.save(user);
+        try {
+            userRepository.save(user);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw new BadRequestException("Email is already registered or invalid data");
+        }
 
-        // Send welcome email (non-critical — failure is logged but doesn't block response)
-        emailService.sendWelcomeEmail(user.getEmail(), user.getFirstName());
+        // Always generate & save OTP to DB (critical — must succeed for verification to work)
+        System.out.println("[REGISTER] Sending email-verification OTP to: " + user.getEmail());
+        try {
+            otpService.sendEmailVerificationOtp(user);
+            System.out.println("[REGISTER] OTP email dispatch succeeded for: " + user.getEmail());
+        } catch (Exception e) {
+            // Log but don't fail registration; user can request resend from verify page
+            System.err.println("[REGISTER] Failed to send OTP email to " + user.getEmail() + ": " + e.getMessage());
+            e.printStackTrace();
+        }
 
-        // Send email-verification OTP so user can prove email ownership
-        otpService.sendEmailVerificationOtp(user);
+        // Welcome email is always non-critical
+        try {
+            emailService.sendWelcomeEmail(user.getEmail(), user.getFirstName());
+        } catch (Exception ignored) {}
 
-        String accessToken  = tokenProvider.generateTokenFromEmail(user.getEmail());
-        String refreshToken = tokenProvider.generateRefreshToken(user.getEmail());
-
-        AuthResponse body = buildAuthResponse(user, accessToken, refreshToken);
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(ApiResponse.ok(body, "Registration successful. Check your email to verify your account."));
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "User registered successfully"));
     }
 
     /* ── REFRESH TOKEN ─────────────────────────────────────────────────── */
@@ -124,13 +139,12 @@ public class AuthController {
             throw new BadRequestException("Provided token is not a refresh token");
         }
 
-        String email       = tokenProvider.getEmailFromToken(refreshToken);
+        String email = tokenProvider.getEmailFromToken(refreshToken);
         String accessToken = tokenProvider.generateTokenFromEmail(email);
 
         Map<String, Object> responseBody = Map.of(
                 "accessToken", accessToken,
-                "expiresIn",   tokenProvider.getExpirationMs()
-        );
+                "expiresIn", tokenProvider.getExpirationMs());
         return ResponseEntity.ok(ApiResponse.ok(responseBody, "Token refreshed"));
     }
 

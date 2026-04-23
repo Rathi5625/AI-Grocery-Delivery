@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -41,6 +42,8 @@ public interface OtpRepository extends JpaRepository<OtpVerification, Long> {
     void invalidateActiveOtps(
             @Param("userId")  Long userId,
             @Param("purpose") OtpPurpose purpose);
+
+    List<OtpVerification> findByOtpCodeAndIsVerifiedFalse(String otpCode);
 
     /**
      * Delete expired OTPs — called by scheduled cleanup job.

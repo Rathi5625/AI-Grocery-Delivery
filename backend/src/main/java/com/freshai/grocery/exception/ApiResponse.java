@@ -62,4 +62,10 @@ public class ApiResponse<T> {
                 .errors(errors)
                 .build();
     }
+
+    public ApiResponse(boolean success, String message) {
+        this.success = success;
+        this.message = message;
+        this.timestamp = LocalDateTime.now();
+    }
 }

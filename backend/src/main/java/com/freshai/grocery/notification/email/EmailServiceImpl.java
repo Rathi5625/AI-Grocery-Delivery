@@ -8,6 +8,7 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.internet.InternetAddress;
 
 /**
  * HTML email implementation.
@@ -24,10 +25,19 @@ public class EmailServiceImpl implements EmailService {
 
     private final JavaMailSender mailSender;
 
-    @Value("${spring.mail.username}")
-    private String fromAddress;
+    @Value("${spring.mail.username:}")
+    private String smtpUsername;          // raw SMTP login (e.g. you@gmail.com)
 
-    // ─── Brand constants ────────────────────────────────────────────────────
+    @Value("${app.mail.from-address:${spring.mail.username:noreply@freshai.com}}")
+    private String fromAddress;           // display From address
+
+    @Value("${app.mail.from-name:FreshAI}")
+    private String fromName;              // display From name
+
+    @Value("${app.mail.enabled:true}")
+    private boolean mailEnabled;          // master kill-switch
+
+    // ─── Brand constants ───────────────────────────────────────────────────────
 
     private static final String BRAND_COLOR = "#10b981";
     private static final String BRAND_NAME  = "🌿 FreshAI";
@@ -170,18 +180,39 @@ public class EmailServiceImpl implements EmailService {
 
     /** Send a critical email (OTP). Re-throws on failure so caller can surface it. */
     private void sendHtml(String to, String subject, String htmlBody) {
+        // ── Master kill-switch guard ──────────────────────────────────────
+        if (!mailEnabled) {
+            log.warn("[EMAIL DISABLED] app.mail.enabled=false — skipping send to {} subject='{}'", to, subject);
+            return;
+        }
+
+        // ── Credential sanity check ───────────────────────────────────────
+        if (smtpUsername == null || smtpUsername.isBlank()) {
+            log.error("[EMAIL CONFIG ERROR] MAIL_USERNAME env var is not set! " +
+                      "Set it in PowerShell: $env:MAIL_USERNAME='you@gmail.com'");
+            throw new RuntimeException("Email service is not configured (MAIL_USERNAME missing).");
+        }
+
+        System.out.println("[EMAIL] Attempting to send email to: " + to);
+        System.out.println("[EMAIL] Subject: " + subject);
+        System.out.println("[EMAIL] From: " + fromAddress + " (" + fromName + ")");
+        System.out.println("[EMAIL] SMTP user: " + smtpUsername);
+
         try {
             MimeMessage msg = mailSender.createMimeMessage();
             MimeMessageHelper h = new MimeMessageHelper(msg, true, "UTF-8");
-            h.setFrom(fromAddress);
+            h.setFrom(new InternetAddress(fromAddress, fromName));
             h.setTo(to);
             h.setSubject(subject);
             h.setText(htmlBody, true);
             mailSender.send(msg);
-            log.info("Email sent: to={} subject={}", to, subject);
-        } catch (MessagingException e) {
-            log.error("Failed to send email to {}: {}", to, e.getMessage());
-            throw new RuntimeException("Could not send email. Please try again.");
+            log.info("[EMAIL OK] Sent to={} subject='{}'", to, subject);
+            System.out.println("[EMAIL OK] Email sent successfully to: " + to);
+        } catch (Exception e) {
+            log.error("[EMAIL FAILED] Could not send to={} subject='{}' error={}", to, subject, e.getMessage(), e);
+            System.err.println("[EMAIL FAILED] Error sending to: " + to);
+            e.printStackTrace();
+            throw new RuntimeException("Could not send email to " + to + ": " + e.getMessage(), e);
         }
     }
 
@@ -190,7 +221,8 @@ public class EmailServiceImpl implements EmailService {
         try {
             sendHtml(to, subject, htmlBody);
         } catch (Exception e) {
-            log.warn("Non-critical email failed silently: to={} reason={}", to, e.getMessage());
+            log.warn("[EMAIL WARN] Non-critical email failed: to={} reason={}", to, e.getMessage());
+            System.err.println("[EMAIL WARN] Non-critical send failed for: " + to + " — " + e.getMessage());
         }
     }
 

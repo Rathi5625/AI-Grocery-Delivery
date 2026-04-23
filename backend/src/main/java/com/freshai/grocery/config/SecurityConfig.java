@@ -43,6 +43,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Public auth endpoints (login, register, refresh, forgot-password)
                         .requestMatchers("/api/auth/**").permitAll()
+                        // Diagnostic test-email endpoint (REMOVE IN PRODUCTION)
+                        .requestMatchers("/api/test-email/**").permitAll()
+                        // OTP send + verify — public (user may not be logged in yet)
+                        .requestMatchers("/api/otp/**").permitAll()
                         // Public product/category browsing
                         .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()

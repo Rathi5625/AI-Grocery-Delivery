@@ -36,6 +36,7 @@ const extractArray = (data) => {
   if (Array.isArray(data)) return data;
   if (data?.content && Array.isArray(data.content)) return data.content;
   if (data?.data && Array.isArray(data.data)) return data.data;
+  if (data?.data?.content && Array.isArray(data.data.content)) return data.data.content;
   return [];
 };
 
@@ -655,7 +656,7 @@ export default function AdminDashboard() {
               <tr key={o.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                 <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--primary, #16a34a)' }}>{o.orderNumber}</td>
                 <td style={{ padding: '14px 16px' }}>
-                  <div style={{ fontWeight: 600 }}>{o.customerName || 'Guest'}</div>
+                  <div style={{ fontWeight: 600 }}>{o.customerName || o.userEmail || 'Guest'}</div>
                   <div style={{ fontSize: 12, color: '#9ca3af' }}>{new Date(o.createdAt).toLocaleString()}</div>
                 </td>
                 <td style={{ padding: '14px 16px', color: '#6b7280' }}>{o.items?.length ?? 0}</td>

@@ -30,7 +30,13 @@ export default function LoginPage() {
             toast.success('Welcome back!', { icon: '👋' });
             navigate('/');
         } catch (err) {
-            setError(err.userMessage || 'Invalid email or password');
+            const errorMsg = err.userMessage || err?.response?.data?.message || 'Invalid email or password';
+            if (errorMsg.includes('verify your email')) {
+                toast.error('Please verify your email to log in.');
+                navigate(`/verify-otp?email=${encodeURIComponent(form.email)}`);
+            } else {
+                setError(errorMsg);
+            }
         } finally { setLoading(false); }
     };
 

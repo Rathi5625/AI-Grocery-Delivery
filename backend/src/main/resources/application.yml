@@ -44,13 +44,16 @@ spring:
     resources:
       add-mappings: false
 
-  # ── Email / SMTP (disabled until you add Gmail App Password) ─
-  # To enable: set the username/password below and set app.mail.enabled=true
+  # ── Email / SMTP ──────────────────────────────────────────────
+  # Set MAIL_USERNAME and MAIL_PASSWORD environment variables (Gmail App Password)
+  # Example (PowerShell):
+  #   $env:MAIL_USERNAME = "you@gmail.com"
+  #   $env:MAIL_PASSWORD = "abcd efgh ijkl mnop"   ← 16-char Gmail App Password
   mail:
     host: smtp.gmail.com
     port: 587
-    username: ''    # ← paste your Gmail address here when ready
-    password: ''    # ← paste your 16-char Gmail App Password here
+    username: ${MAIL_USERNAME:}      # ← REQUIRED: set MAIL_USERNAME env var
+    password: ${MAIL_PASSWORD:}      # ← REQUIRED: set MAIL_PASSWORD env var
     properties:
       mail:
         smtp:
@@ -58,11 +61,11 @@ spring:
           starttls:
             enable: true
             required: true
-          connectiontimeout: 5000
-          timeout: 5000
-          writetimeout: 5000
-        debug: false
-    test-connection: false   # prevents startup failure when SMTP is not configured
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
+        debug: true                  # prints SMTP conversation to console for debugging
+    test-connection: false           # prevents startup failure when SMTP is not configured
 
 # ── App Config ────────────────────────────────────────────────
 app:
@@ -78,8 +81,9 @@ app:
     url: http://localhost:3000
 
   mail:
-    enabled: false   # ← set to true after adding Gmail credentials above
+    enabled: ${MAIL_ENABLED:true}    # set MAIL_ENABLED=false to suppress emails in dev
     from-name: "FreshAI"
+    from-address: ${MAIL_USERNAME:noreply@freshai.com}
 
   otp:
     expiry-minutes: 10
@@ -88,6 +92,8 @@ app:
 # ── Logging ───────────────────────────────────────────────────
 logging:
   level:
-    com.freshai.grocery: INFO
+    com.freshai.grocery: DEBUG          # app-level debug
+    org.springframework.mail: DEBUG     # Spring Mail framework logs
+    com.sun.mail: DEBUG                 # JavaMail SMTP protocol debug
     org.springframework.security: WARN
     com.zaxxer.hikari: WARN
