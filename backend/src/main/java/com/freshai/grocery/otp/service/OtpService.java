@@ -126,11 +126,23 @@ public class OtpService {
         }
     }
 
+    /**
+     * Resend email-verification OTP from the verify page.
+     * Applies rate-limiting (max 5 per hour) and invalidates any existing OTPs.
+     */
+    @Transactional
+    public void resendEmailVerificationOtp(User user) {
+        enforceRateLimit(user.getId(), OtpPurpose.EMAIL_VERIFY);
+        sendEmailVerificationOtp(user);
+        log.info("[OTP RESEND] Email-verification OTP resent: userId={}", user.getId());
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // VERIFY
     // ═══════════════════════════════════════════════════════════════════════
 
     /**
+
      * Verifies an OTP without applying the change.
      * Returns the verified OtpVerification record so the caller can act on it.
      */

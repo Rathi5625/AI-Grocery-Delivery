@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
-import { FiPlus, FiCheck, FiShoppingCart } from 'react-icons/fi';
+import { FiPlus, FiCheck, FiShoppingCart, FiZap } from 'react-icons/fi';
 import { RiLeafLine } from 'react-icons/ri';
 
 export default function ProductCard({ product, onAddToCart, index = 0 }) {
@@ -26,80 +26,78 @@ export default function ProductCard({ product, onAddToCart, index = 0 }) {
 
   return (
     <motion.div
-      className="product-card"
+      className="pcard"
       id={`product-${product.id}`}
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.32, delay: Math.min(index * 0.05, 0.4), ease: [0.4, 0, 0.2, 1] }}
+      transition={{ duration: 0.36, delay: Math.min(index * 0.05, 0.4), ease: [0.4, 0, 0.2, 1] }}
       onHoverStart={() => setHovered(true)}
       onHoverEnd={() => setHovered(false)}
-      whileHover={{ y: -6, boxShadow: '0 20px 50px rgba(0,0,0,0.14)' }}
+      whileHover={{ y: -6 }}
     >
       {/* ── Image ── */}
-      <Link to={`/products/${product.id}`} tabIndex={-1}>
-        <div className="product-card__image-wrap" style={{ position: 'relative', width: '100%', paddingTop: '100%', overflow: 'hidden' }}>
+      <Link to={`/products/${product.id}`} tabIndex={-1} className="pcard__img-link">
+        <div className="pcard__img-wrap">
           {imgError || !product.imageUrl ? (
-            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f3f4f6', color: '#9ca3af' }}>
-              <RiLeafLine size={48} opacity={0.3} />
+            <div className="pcard__img-fallback">
+              <RiLeafLine size={44} opacity={0.2} />
             </div>
           ) : (
             <motion.img
               src={product.imageUrl}
               alt={product.name}
-              className="product-card__image"
-              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+              className="pcard__img"
               loading="lazy"
               onError={() => setImgError(true)}
-              animate={{ scale: hovered ? 1.07 : 1 }}
-              transition={{ duration: 0.4, ease: 'easeOut' }}
+              animate={{ scale: hovered ? 1.08 : 1 }}
+              transition={{ duration: 0.45, ease: 'easeOut' }}
             />
           )}
 
-          {/* Gradient overlay */}
-          <div className="product-card__image-overlay" />
+          {/* gradient overlay */}
+          <div className="pcard__img-overlay" />
 
           {/* Badges */}
-          <div className="product-card__badges">
+          <div className="pcard__badges">
             {hasDiscount && (
-              <span className="product-card__badge product-card__badge--sale">
-                {discountPct}% OFF
-              </span>
+              <span className="pcard__badge pcard__badge--sale">{discountPct}% OFF</span>
             )}
             {product.isOrganic && (
-              <span className="product-card__badge product-card__badge--organic">
+              <span className="pcard__badge pcard__badge--organic">
                 <RiLeafLine size={9} /> Organic
-              </span>
-            )}
-            {product.isFeatured && !hasDiscount && !product.isOrganic && (
-              <span className="product-card__badge product-card__badge--featured">
-                ⭐ Featured
               </span>
             )}
           </div>
 
+          {/* Delivery pill */}
+          <div className="pcard__delivery-pill">
+            <FiZap size={9} />
+            <span>10 min</span>
+          </div>
+
           {/* Eco score */}
           {product.sustainabilityScore && (
-            <div className="product-card__eco-score" title={`Eco Score: ${product.sustainabilityScore}/10`}>
+            <div className="pcard__eco" title={`Eco Score: ${product.sustainabilityScore}/10`}>
               <RiLeafLine size={10} />
               {Number(product.sustainabilityScore).toFixed(1)}
             </div>
           )}
 
-          {/* Quick-add overlay button (visible on hover) */}
+          {/* Quick-add overlay */}
           <AnimatePresence>
             {hovered && (
               <motion.button
-                className={`product-card__add-btn ${added ? 'product-card__add-btn--added' : ''}`}
+                className={`pcard__quick-add ${added ? 'pcard__quick-add--added' : ''}`}
                 onClick={handleAdd}
-                initial={{ opacity: 0, scale: 0.7 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.7 }}
+                initial={{ opacity: 0, scale: 0.75, y: 6 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.75, y: 6 }}
                 transition={{ duration: 0.18 }}
-                whileTap={{ scale: 0.88 }}
+                whileTap={{ scale: 0.9 }}
                 id={`quick-add-${product.id}`}
                 aria-label={`Add ${product.name} to cart`}
               >
-                {added ? <FiCheck size={15} /> : <FiShoppingCart size={15} />}
+                {added ? <FiCheck size={14} /> : <FiShoppingCart size={14} />}
               </motion.button>
             )}
           </AnimatePresence>
@@ -107,50 +105,45 @@ export default function ProductCard({ product, onAddToCart, index = 0 }) {
       </Link>
 
       {/* ── Body ── */}
-      <div className="product-card__body">
-        <div className="product-card__timer">⚡ 10 min delivery</div>
-
-        <Link to={`/products/${product.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-          <h3 className="product-card__name">{product.name}</h3>
+      <div className="pcard__body">
+        <Link to={`/products/${product.id}`} className="pcard__name-link">
+          <h3 className="pcard__name">{product.name}</h3>
         </Link>
-        <div className="product-card__weight">{product.unit}</div>
+        <div className="pcard__unit">{product.unit}</div>
 
-        <div className="product-card__bottom">
-          <div className="product-card__prices">
-            <span className="product-card__price">₹{displayPrice}</span>
+        <div className="pcard__bottom">
+          <div className="pcard__prices">
+            <span className="pcard__price">₹{displayPrice}</span>
             {hasDiscount && (
-              <span className="product-card__original-price">₹{product.price}</span>
+              <span className="pcard__original">₹{product.price}</span>
             )}
           </div>
 
-          {/* Inline add button */}
           <motion.button
-            className={`product-card__inline-add ${added ? 'product-card__inline-add--added' : ''}`}
+            className={`pcard__add ${added ? 'pcard__add--added' : ''}`}
             onClick={handleAdd}
-            whileTap={{ scale: 0.92 }}
+            whileTap={{ scale: 0.9 }}
             id={`add-to-cart-${product.id}`}
             aria-label={`Add ${product.name} to cart`}
           >
             <AnimatePresence mode="wait">
               {added ? (
-                <motion.span
-                  key="added"
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 4 }}
-                >
-                  <FiCheck size={12} /> ADDED
-                </motion.span>
-              ) : (
-                <motion.span
-                  key="add"
+                <motion.span key="added"
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
                   style={{ display: 'flex', alignItems: 'center', gap: 3 }}
                 >
-                  <FiPlus size={12} /> ADD
+                  <FiCheck size={12} /> ✓
+                </motion.span>
+              ) : (
+                <motion.span key="add"
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 3 }}
+                >
+                  <FiPlus size={12} />
                 </motion.span>
               )}
             </AnimatePresence>

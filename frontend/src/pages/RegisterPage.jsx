@@ -3,120 +3,206 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
-import { FiEye, FiEyeOff } from 'react-icons/fi';
+import { FiEye, FiEyeOff, FiMail, FiLock, FiUser, FiPhone, FiArrowRight } from 'react-icons/fi';
+import { RiLeafLine, RiSparklingLine } from 'react-icons/ri';
+
+const TRUST_ITEMS = [
+  { icon: '✓', text: 'Free first delivery' },
+  { icon: '✓', text: '100% organic options' },
+  { icon: '✓', text: 'Cancel anytime' },
+];
 
 export default function RegisterPage() {
-    const { signup } = useAuth();
-    const navigate = useNavigate();
-    const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', phone: '' });
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
+  const { signup } = useAuth();
+  const navigate   = useNavigate();
+  const [form, setForm]           = useState({ firstName: '', lastName: '', email: '', password: '', phone: '' });
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        
-        if (loading) return; // Fix double API call bug
-        setError('');
+  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
 
-        if (!form.firstName || !form.lastName || !form.email || !form.password) {
-            setError('Please fill in all required fields');
-            return;
-        }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (loading) return;
+    setError('');
+    if (!form.firstName || !form.lastName || !form.email || !form.password) {
+      setError('Please fill in all required fields');
+      return;
+    }
+    if (form.password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+    setLoading(true);
+    try {
+      await signup(form);
+      toast.success('Account created! Check your email for the verification code.', { icon: '📧', duration: 5000 });
+      navigate(`/verify-otp?email=${encodeURIComponent(form.email)}`);
+    } catch (err) {
+      const raw = err?.response?.data?.message || err?.userMessage || '';
+      const friendly =
+        raw.toLowerCase().includes('already') ? 'An account with this email already exists.' :
+        raw.toLowerCase().includes('password') ? 'Password must be at least 8 characters.' :
+        raw || 'Something went wrong. Please try again.';
+      setError(friendly);
+    } finally { setLoading(false); }
+  };
 
-        if (form.password.length < 8) {
-            setError('Password must be at least 8 characters long');
-            return;
-        }
+  return (
+    <div className="auth2" id="register-page">
+      {/* ── Left panel ── */}
+      <motion.div
+        className="auth2__left"
+        initial={{ opacity: 0, x: -40 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <div className="auth2__blob auth2__blob--1" />
+        <div className="auth2__blob auth2__blob--2" />
 
-        setLoading(true);
-        try {
-            await signup(form);
-            toast.success('Account created successfully!', { icon: '🎉' });
-            navigate(`/verify-otp?email=${encodeURIComponent(form.email)}`);
-        } catch (err) {
-            setError(err.userMessage || 'Something went wrong. Please try again.');
-        } finally { 
-            setLoading(false); 
-        }
-    };
+        <div className="auth2__left-inner">
+          <div className="auth2__brand">
+            <span className="auth2__brand-icon"><RiLeafLine size={18} /></span>
+            FreshAI
+          </div>
 
-    return (
-        <div className="auth-page" id="register-page">
-            <motion.div className="auth-page__left" initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}>
-                <div className="auth-page__brand">🌿 FreshAI</div>
-                <p className="auth-page__tagline">
-                    Join thousands of eco-conscious shoppers. Get AI-powered recommendations and track your sustainability impact.
-                </p>
-            </motion.div>
+          <div className="auth2__left-content">
+            <div className="auth2__left-eyebrow">
+              <RiSparklingLine size={13} /> Join 50,000+ Happy Shoppers
+            </div>
+            <h2 className="auth2__left-headline">
+              Start your fresh<br />
+              <span className="auth2__left-accent">food journey today</span>
+            </h2>
+            <p className="auth2__left-sub">
+              AI-curated groceries, eco-friendly packaging, and lightning-fast delivery to your door.
+            </p>
 
-            <motion.div className="auth-page__right" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
-                <form className="auth-form" onSubmit={handleSubmit}>
-                    <h1 className="auth-form__title">Create account</h1>
-                    <p className="auth-form__subtitle">Start your sustainable shopping journey</p>
+            <div className="auth2__left-pills">
+              {TRUST_ITEMS.map((item, i) => (
+                <motion.div
+                  key={i}
+                  className="auth2__pill auth2__pill--check"
+                  initial={{ opacity: 0, x: -16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 + i * 0.1 }}
+                >
+                  <span style={{ color: '#4ade80', fontWeight: 700 }}>{item.icon}</span> {item.text}
+                </motion.div>
+              ))}
+            </div>
+          </div>
 
-                    <AnimatePresence>
-                        {error && (
-                            <motion.div className="auth-form__alert" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }}>
-                                {error}
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
-                        <div className="form-floating" style={{ marginBottom: 0 }}>
-                            <input type="text" id="firstName" placeholder=" "
-                                value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} required />
-                            <label htmlFor="firstName">First Name</label>
-                        </div>
-                        <div className="form-floating" style={{ marginBottom: 0 }}>
-                            <input type="text" id="lastName" placeholder=" "
-                                value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} required />
-                            <label htmlFor="lastName">Last Name</label>
-                        </div>
-                    </div>
-
-                    <div className="form-floating" style={{ marginTop: 'var(--space-4)' }}>
-                        <input type="email" id="reg-email" placeholder=" "
-                            value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
-                        <label htmlFor="reg-email">Email address</label>
-                    </div>
-
-                    <div className="form-floating">
-                        <input type={showPassword ? 'text' : 'password'} id="reg-password" placeholder=" "
-                            value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required minLength={8} />
-                        <label htmlFor="reg-password">Password (Min 8 characters)</label>
-                        <button type="button" className="password-toggle" onClick={() => setShowPassword(!showPassword)}>
-                            {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
-                        </button>
-                    </div>
-
-                    <div className="form-floating">
-                        <input type="tel" id="phone" placeholder=" "
-                            value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
-                        <label htmlFor="phone">Phone (optional)</label>
-                    </div>
-
-                    <motion.button
-                        type="submit"
-                        className="btn btn--primary btn--lg btn--full"
-                        style={{ marginTop: 'var(--space-2)' }}
-                        disabled={loading}
-                        id="register-submit"
-                        whileTap={{ scale: 0.98 }}
-                    >
-                        {loading ? (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <span className="loader__spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /> Creating account...
-                            </span>
-                        ) : 'Create Account'}
-                    </motion.button>
-
-                    <p style={{ textAlign: 'center', marginTop: 'var(--space-6)', fontSize: 'var(--text-sm)', color: 'var(--gray-500)' }}>
-                        Already have an account? <Link to="/login" className="auth-form__link">Sign in</Link>
-                    </p>
-                </form>
-            </motion.div>
+          <div className="auth2__left-stats">
+            {[{ v: '50K+', l: 'Happy Customers' }, { v: '500+', l: 'Products' }, { v: '10 min', l: 'Avg. Delivery' }].map((s, i) => (
+              <div key={i} className="auth2__left-stat">
+                <div className="auth2__left-stat-value">{s.v}</div>
+                <div className="auth2__left-stat-label">{s.l}</div>
+              </div>
+            ))}
+          </div>
         </div>
-    );
+      </motion.div>
+
+      {/* ── Right panel ── */}
+      <motion.div
+        className="auth2__right"
+        initial={{ opacity: 0, x: 40 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.6, delay: 0.1 }}
+      >
+        <div className="auth2__form-wrap">
+          <div className="auth2__form-header">
+            <h1 className="auth2__form-title">Create account</h1>
+            <p className="auth2__form-sub">Join FreshAI and start shopping fresh</p>
+          </div>
+
+          <AnimatePresence>
+            {error && (
+              <motion.div
+                className="auth2__alert"
+                initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                animate={{ opacity: 1, height: 'auto', marginBottom: 20 }}
+                exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                transition={{ duration: 0.25 }}
+              >
+                ⚠ {error}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <form onSubmit={handleSubmit} className="auth2__form" noValidate>
+            {/* Name row */}
+            <div className="auth2__row">
+              <div className="auth2__field">
+                <label className="auth2__label" htmlFor="firstName">First name</label>
+                <div className="auth2__input-wrap">
+                  <FiUser size={15} className="auth2__input-icon" />
+                  <input id="firstName" type="text" className="auth2__input" placeholder="John"
+                    value={form.firstName} onChange={set('firstName')} required />
+                </div>
+              </div>
+              <div className="auth2__field">
+                <label className="auth2__label" htmlFor="lastName">Last name</label>
+                <div className="auth2__input-wrap">
+                  <FiUser size={15} className="auth2__input-icon" />
+                  <input id="lastName" type="text" className="auth2__input" placeholder="Doe"
+                    value={form.lastName} onChange={set('lastName')} required />
+                </div>
+              </div>
+            </div>
+
+            {/* Email */}
+            <div className="auth2__field">
+              <label className="auth2__label" htmlFor="reg-email">Email address</label>
+              <div className="auth2__input-wrap">
+                <FiMail size={15} className="auth2__input-icon" />
+                <input id="reg-email" type="email" className="auth2__input" placeholder="you@example.com"
+                  value={form.email} onChange={set('email')} required autoComplete="email" />
+              </div>
+            </div>
+
+            {/* Password */}
+            <div className="auth2__field">
+              <label className="auth2__label" htmlFor="reg-password">Password</label>
+              <div className="auth2__input-wrap">
+                <FiLock size={15} className="auth2__input-icon" />
+                <input id="reg-password" type={showPassword ? 'text' : 'password'} className="auth2__input"
+                  placeholder="Min. 8 characters" value={form.password} onChange={set('password')} required minLength={8} />
+                <button type="button" className="auth2__eye" onClick={() => setShowPassword(v => !v)} tabIndex={-1}>
+                  {showPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Phone (optional) */}
+            <div className="auth2__field">
+              <label className="auth2__label" htmlFor="phone">Phone <span style={{ color: 'var(--gray-400)', fontWeight: 400, textTransform: 'none' }}>(optional)</span></label>
+              <div className="auth2__input-wrap">
+                <FiPhone size={15} className="auth2__input-icon" />
+                <input id="phone" type="tel" className="auth2__input" placeholder="+91 98765 43210"
+                  value={form.phone} onChange={set('phone')} />
+              </div>
+            </div>
+
+            <motion.button
+              type="submit"
+              className="auth2__submit"
+              disabled={loading}
+              id="register-submit"
+              whileTap={{ scale: 0.98 }}
+            >
+              {loading ? <span className="auth2__spinner" /> : <>Create Account <FiArrowRight size={16} /></>}
+            </motion.button>
+          </form>
+
+          <p className="auth2__footer-text">
+            Already have an account?{' '}
+            <Link to="/login" className="auth2__footer-link">Sign in</Link>
+          </p>
+        </div>
+      </motion.div>
+    </div>
+  );
 }

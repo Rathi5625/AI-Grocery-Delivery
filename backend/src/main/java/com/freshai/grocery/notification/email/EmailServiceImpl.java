@@ -6,17 +6,18 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
-import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.mail.internet.InternetAddress;
 
 /**
- * HTML email implementation.
+ * HTML email implementation for FreshAI.
  *
- * All templates share the same green (#10b981) FreshAI brand identity.
- * Mail sends are best-effort: exceptions are caught and logged, not re-thrown for
- * non-critical emails (welcome, confirmation). For OTP emails, the exception IS
- * re-thrown so the caller can surface the error to the user.
+ * All OTP emails use a polished HTML template with:
+ *   • FreshAI green branding (#10b981)
+ *   • Large digit display for the OTP
+ *   • Security footer + expiry notice
+ *
+ * OTP sends re-throw on failure. Non-critical sends (welcome, alert) are best-effort.
  */
 @Service
 @RequiredArgsConstructor
@@ -26,56 +27,62 @@ public class EmailServiceImpl implements EmailService {
     private final JavaMailSender mailSender;
 
     @Value("${spring.mail.username:}")
-    private String smtpUsername;          // raw SMTP login (e.g. you@gmail.com)
+    private String smtpUsername;
 
     @Value("${app.mail.from-address:${spring.mail.username:noreply@freshai.com}}")
-    private String fromAddress;           // display From address
+    private String fromAddress;
 
     @Value("${app.mail.from-name:FreshAI}")
-    private String fromName;              // display From name
+    private String fromName;
 
     @Value("${app.mail.enabled:true}")
-    private boolean mailEnabled;          // master kill-switch
+    private boolean mailEnabled;
 
-    // ─── Brand constants ───────────────────────────────────────────────────────
-
-    private static final String BRAND_COLOR = "#10b981";
-    private static final String BRAND_NAME  = "🌿 FreshAI";
+    // ── Brand constants ────────────────────────────────────────────────────────
+    private static final String BRAND_COLOR   = "#10b981";
+    private static final String BRAND_DARK    = "#065f46";
+    private static final String BRAND_NAME    = "🌿 FreshAI";
     private static final String BRAND_TAGLINE = "Fresh Grocery Delivery";
     private static final int    OTP_EXPIRY_MINUTES = 5;
 
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════════
     // PUBLIC API
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════════
 
     @Override
     public void sendOtpEmail(String toEmail, String otpCode, String purpose) {
         String purposeLabel = switch (purpose.toUpperCase()) {
-            case "EMAIL_CHANGE"   -> "email address change";
-            case "PHONE_CHANGE"   -> "phone number change";
+            case "EMAIL_CHANGE"    -> "email address change";
+            case "PHONE_CHANGE"    -> "phone number change";
             case "PASSWORD_CHANGE" -> "password change";
-            case "EMAIL_VERIFY"   -> "email verification";
-            default               -> "profile update";
+            case "EMAIL_VERIFY"    -> "email verification";
+            default                -> "profile update";
         };
-        sendHtml(toEmail, BRAND_NAME + " — Verification Code",
-                buildOtpBlock("Verification Code",
-                        "You requested a code for your <strong>" + purposeLabel + "</strong>.",
+        sendHtml(toEmail,
+                "FreshAI Verification Code",
+                buildOtpTemplate(
+                        "Verification Code",
+                        "You requested a one-time code for your <strong>" + purposeLabel + "</strong>.",
                         otpCode));
     }
 
     @Override
     public void sendEmailVerificationOtp(String toEmail, String firstName, String otpCode) {
-        sendHtml(toEmail, BRAND_NAME + " — Verify Your Email",
-                buildOtpBlock("Verify Your Email ✉️",
-                        "Hi <strong>" + escHtml(firstName) + "</strong>, thanks for joining FreshAI! " +
-                        "Enter the code below to verify your email address.",
+        sendHtml(toEmail,
+                "FreshAI — Verify Your Email",
+                buildOtpTemplate(
+                        "Verify Your Email ✉️",
+                        "Hi <strong>" + escHtml(firstName) + "</strong>! Thanks for joining FreshAI. " +
+                        "Enter the 6-digit code below to activate your account.",
                         otpCode));
     }
 
     @Override
     public void sendPasswordChangeOtp(String toEmail, String firstName, String otpCode) {
-        sendHtml(toEmail, BRAND_NAME + " — Password Change Request",
-                buildOtpBlock("Password Change 🔒",
+        sendHtml(toEmail,
+                "FreshAI — Password Change Request",
+                buildOtpTemplate(
+                        "Password Change 🔒",
                         "Hi <strong>" + escHtml(firstName) + "</strong>, we received a request to change " +
                         "your password. Enter the code below to continue.",
                         otpCode));
@@ -83,8 +90,10 @@ public class EmailServiceImpl implements EmailService {
 
     @Override
     public void sendPasswordResetOtp(String toEmail, String firstName, String otpCode) {
-        sendHtml(toEmail, BRAND_NAME + " — Reset Your Password",
-                buildOtpBlock("Password Reset 🔑",
+        sendHtml(toEmail,
+                "FreshAI — Reset Your Password",
+                buildOtpTemplate(
+                        "Password Reset 🔑",
                         "Hi <strong>" + escHtml(firstName) + "</strong>, we received a request to reset " +
                         "your FreshAI account password. Enter the code below. " +
                         "If you did not request this, you can safely ignore this email.",
@@ -93,8 +102,9 @@ public class EmailServiceImpl implements EmailService {
 
     @Override
     public void sendProfileUpdateConfirmation(String toEmail, String fieldChanged) {
-        sendHtmlNonCritical(toEmail, BRAND_NAME + " — Profile Updated",
-                buildConfirmation(
+        sendHtmlNonCritical(toEmail,
+                "FreshAI — Profile Updated",
+                buildConfirmationTemplate(
                         "Profile Updated ✓",
                         "Your <strong>" + escHtml(fieldChanged) + "</strong> has been updated successfully. " +
                         "If you did not make this change, please contact support immediately."));
@@ -102,153 +112,239 @@ public class EmailServiceImpl implements EmailService {
 
     @Override
     public void sendWelcomeEmail(String toEmail, String firstName) {
-        sendHtmlNonCritical(toEmail, "Welcome to " + BRAND_NAME + " 🎉",
-                buildWelcome(firstName));
+        sendHtmlNonCritical(toEmail,
+                "Welcome to FreshAI 🎉",
+                buildWelcomeTemplate(firstName));
     }
 
     @Override
     public void sendPasswordChangedAlert(String toEmail, String firstName) {
-        sendHtmlNonCritical(toEmail, BRAND_NAME + " — Password Changed Successfully",
-                buildConfirmation(
+        sendHtmlNonCritical(toEmail,
+                "FreshAI — Password Changed Successfully",
+                buildConfirmationTemplate(
                         "Password Changed ✓",
                         "Hi <strong>" + escHtml(firstName) + "</strong>, your password was just changed. " +
                         "If this was you, no action is needed. " +
                         "If you did not make this change, please contact support immediately."));
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // HTML BUILDERS
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════════
+    // HTML TEMPLATES
+    // ═══════════════════════════════════════════════════════════════════════════
 
-    private String buildOtpBlock(String heading, String body, String code) {
+    /**
+     * Premium OTP email template with:
+     *  • Gradient header
+     *  • Spaced digit boxes for the OTP
+     *  • Expiry + security notices
+     */
+    private String buildOtpTemplate(String heading, String bodyText, String code) {
+        // Render each digit as a styled box
+        StringBuilder digitBoxes = new StringBuilder();
+        for (char ch : code.toCharArray()) {
+            digitBoxes.append(
+                "<span style=\"" +
+                "display:inline-block;" +
+                "width:48px;height:56px;" +
+                "line-height:56px;" +
+                "text-align:center;" +
+                "font-size:28px;font-weight:800;" +
+                "color:" + BRAND_DARK + ";" +
+                "background:#f0fdf4;" +
+                "border:2px solid " + BRAND_COLOR + ";" +
+                "border-radius:10px;" +
+                "margin:0 4px;" +
+                "font-family:monospace;" +
+                "\">" + ch + "</span>"
+            );
+        }
+
         return """
-            <div style="font-family:Inter,Arial,sans-serif;max-width:500px;margin:0 auto;background:#f9fafb;padding:32px;border-radius:16px;">
-              %s
-              <div style="background:#fff;border-radius:12px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,0.07);">
-                <h2 style="color:#111827;margin:0 0 10px;font-size:20px;">%s</h2>
-                <p style="color:#6b7280;font-size:14px;line-height:1.6;margin:0 0 24px;">%s</p>
-                <div style="background:#f0fdf4;border:2px dashed %s;border-radius:10px;padding:22px;text-align:center;">
-                  <span style="font-size:38px;font-weight:800;letter-spacing:12px;color:%s;font-variant-numeric:tabular-nums;">%s</span>
-                </div>
-                <p style="color:#9ca3af;font-size:12px;margin:18px 0 0;text-align:center;">
-                  ⏱ Expires in <strong>%d minutes</strong>. Never share this code with anyone.
-                </p>
-              </div>
-              %s
-            </div>
-            """.formatted(brandHeader(), heading, body, BRAND_COLOR, BRAND_COLOR, code,
-                          OTP_EXPIRY_MINUTES, brandFooter());
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+              <meta charset="UTF-8"/>
+              <meta name="viewport" content="width=device-width,initial-scale=1"/>
+              <title>FreshAI Verification Code</title>
+            </head>
+            <body style="margin:0;padding:0;background:#f3f4f6;font-family:Inter,Arial,sans-serif;">
+              <table width="100%%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:40px 0;">
+                <tr><td align="center">
+                  <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%%;">
+
+                    <!-- HEADER -->
+                    <tr>
+                      <td style="background:linear-gradient(135deg,%s 0%%,%s 100%%);border-radius:16px 16px 0 0;padding:32px;text-align:center;">
+                        <div style="font-size:32px;font-weight:900;color:#fff;letter-spacing:-0.5px;">🌿 FreshAI</div>
+                        <div style="color:rgba(255,255,255,0.8);font-size:13px;margin-top:4px;">Fresh Grocery Delivery</div>
+                      </td>
+                    </tr>
+
+                    <!-- BODY -->
+                    <tr>
+                      <td style="background:#ffffff;padding:36px 40px;">
+                        <h2 style="color:#111827;font-size:22px;font-weight:700;margin:0 0 12px;">%s</h2>
+                        <p style="color:#6b7280;font-size:15px;line-height:1.65;margin:0 0 28px;">%s</p>
+
+                        <!-- OTP DISPLAY -->
+                        <div style="background:#f9fafb;border-radius:12px;padding:28px 20px;text-align:center;margin-bottom:24px;">
+                          <p style="color:#6b7280;font-size:13px;margin:0 0 16px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Your verification code</p>
+                          <div style="display:inline-block;">
+                            %s
+                          </div>
+                          <p style="color:#9ca3af;font-size:12px;margin:16px 0 0;">
+                            ⏱&nbsp; Valid for <strong>%d minutes</strong> &nbsp;·&nbsp; Do not share this code
+                          </p>
+                        </div>
+
+                        <!-- SECURITY NOTE -->
+                        <div style="background:#fef3c7;border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:8px;">
+                          <p style="color:#92400e;font-size:13px;margin:0;">
+                            🔒 <strong>Security tip:</strong> FreshAI will never ask for this code via phone or chat.
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+
+                    <!-- FOOTER -->
+                    <tr>
+                      <td style="background:#f9fafb;border-radius:0 0 16px 16px;padding:20px 40px;text-align:center;border-top:1px solid #e5e7eb;">
+                        <p style="color:#9ca3af;font-size:12px;line-height:1.6;margin:0;">
+                          This email was sent by FreshAI &copy; 2025. All rights reserved.<br/>
+                          Questions? Contact <a href="mailto:support@freshai.com" style="color:%s;text-decoration:none;">support@freshai.com</a>
+                        </p>
+                      </td>
+                    </tr>
+
+                  </table>
+                </td></tr>
+              </table>
+            </body>
+            </html>
+            """.formatted(
+                BRAND_COLOR, BRAND_DARK,        // gradient
+                heading,                         // h2
+                bodyText,                        // paragraph
+                digitBoxes.toString(),           // OTP boxes
+                OTP_EXPIRY_MINUTES,              // validity
+                BRAND_COLOR                      // footer link color
+            );
     }
 
-    private String buildConfirmation(String heading, String body) {
+    private String buildConfirmationTemplate(String heading, String body) {
         return """
-            <div style="font-family:Inter,Arial,sans-serif;max-width:500px;margin:0 auto;background:#f9fafb;padding:32px;border-radius:16px;">
-              %s
-              <div style="background:#fff;border-radius:12px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,0.07);">
-                <h2 style="color:#111827;margin:0 0 10px;font-size:20px;">%s</h2>
-                <p style="color:#6b7280;font-size:14px;line-height:1.6;margin:0;">%s</p>
-              </div>
-              %s
-            </div>
-            """.formatted(brandHeader(), heading, body, brandFooter());
+            <!DOCTYPE html>
+            <html lang="en">
+            <head><meta charset="UTF-8"/><title>FreshAI</title></head>
+            <body style="margin:0;padding:0;background:#f3f4f6;font-family:Inter,Arial,sans-serif;">
+              <table width="100%%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:40px 0;">
+                <tr><td align="center">
+                  <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%%;">
+                    <tr>
+                      <td style="background:linear-gradient(135deg,%s 0%%,%s 100%%);border-radius:16px 16px 0 0;padding:28px;text-align:center;">
+                        <div style="font-size:28px;font-weight:900;color:#fff;">🌿 FreshAI</div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="background:#fff;padding:32px 40px;border-radius:0 0 16px 16px;">
+                        <h2 style="color:#111827;font-size:20px;margin:0 0 12px;">%s</h2>
+                        <p style="color:#6b7280;font-size:14px;line-height:1.65;margin:0;">%s</p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="text-align:center;padding:16px;"><p style="color:#9ca3af;font-size:12px;margin:0;">&copy; 2025 FreshAI</p></td>
+                    </tr>
+                  </table>
+                </td></tr>
+              </table>
+            </body>
+            </html>
+            """.formatted(BRAND_COLOR, BRAND_DARK, heading, body);
     }
 
-    private String buildWelcome(String firstName) {
+    private String buildWelcomeTemplate(String firstName) {
         return """
-            <div style="font-family:Inter,Arial,sans-serif;max-width:500px;margin:0 auto;background:#f9fafb;padding:32px;border-radius:16px;">
-              %s
-              <div style="background:#fff;border-radius:12px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,0.07);">
-                <h2 style="color:#111827;margin:0 0 10px;">Welcome, <span style="color:%s;">%s</span>! 👋</h2>
-                <p style="color:#6b7280;font-size:14px;line-height:1.7;">
-                  Thanks for joining <strong>FreshAI</strong> — your smart grocery delivery companion.
-                  We bring fresh fruits, veggies, dairy, and more straight to your door.
-                </p>
-                <a href="http://localhost:5173"
-                   style="display:inline-block;margin-top:20px;padding:12px 28px;background:%s;
-                          color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">
-                  Start Shopping →
-                </a>
-              </div>
-              %s
-            </div>
-            """.formatted(brandHeader(), BRAND_COLOR, escHtml(firstName), BRAND_COLOR, brandFooter());
+            <!DOCTYPE html>
+            <html lang="en">
+            <head><meta charset="UTF-8"/><title>Welcome to FreshAI</title></head>
+            <body style="margin:0;padding:0;background:#f3f4f6;font-family:Inter,Arial,sans-serif;">
+              <table width="100%%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:40px 0;">
+                <tr><td align="center">
+                  <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%%;">
+                    <tr>
+                      <td style="background:linear-gradient(135deg,%s 0%%,%s 100%%);border-radius:16px 16px 0 0;padding:40px;text-align:center;">
+                        <div style="font-size:36px;font-weight:900;color:#fff;margin-bottom:8px;">🌿 FreshAI</div>
+                        <div style="color:rgba(255,255,255,0.85);font-size:14px;">Fresh Grocery Delivery</div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="background:#fff;padding:36px 40px;">
+                        <h2 style="color:#111827;font-size:22px;margin:0 0 12px;">Welcome, <span style="color:%s;">%s</span>! 👋</h2>
+                        <p style="color:#6b7280;font-size:15px;line-height:1.7;margin:0 0 24px;">
+                          Thanks for joining <strong>FreshAI</strong> — your smart grocery delivery companion.
+                          We bring fresh fruits, veggies, dairy, and more straight to your door.
+                        </p>
+                        <a href="http://localhost:5173"
+                           style="display:inline-block;padding:14px 32px;background:%s;color:#fff;
+                                  border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;">
+                          Start Shopping →
+                        </a>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="text-align:center;padding:16px;background:#f9fafb;border-radius:0 0 16px 16px;">
+                        <p style="color:#9ca3af;font-size:12px;margin:0;">&copy; 2025 FreshAI. All rights reserved.</p>
+                      </td>
+                    </tr>
+                  </table>
+                </td></tr>
+              </table>
+            </body>
+            </html>
+            """.formatted(BRAND_COLOR, BRAND_DARK, BRAND_COLOR, escHtml(firstName), BRAND_COLOR);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════════
     // SEND HELPERS
-    // ═══════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════════
 
-    /** Send a critical email (OTP). Re-throws on failure so caller can surface it. */
+    /** Critical send (OTP) — re-throws on failure. */
     private void sendHtml(String to, String subject, String htmlBody) {
-        // ── Master kill-switch guard ──────────────────────────────────────
         if (!mailEnabled) {
-            log.warn("[EMAIL DISABLED] app.mail.enabled=false — skipping send to {} subject='{}'", to, subject);
+            log.warn("[EMAIL DISABLED] Skipping send to {} subject='{}'", to, subject);
             return;
         }
-
-        // ── Credential sanity check ───────────────────────────────────────
         if (smtpUsername == null || smtpUsername.isBlank()) {
-            log.error("[EMAIL CONFIG ERROR] MAIL_USERNAME env var is not set! " +
-                      "Set it in PowerShell: $env:MAIL_USERNAME='you@gmail.com'");
-            throw new RuntimeException("Email service is not configured (MAIL_USERNAME missing).");
+            log.error("[EMAIL CONFIG] MAIL_USERNAME not set.");
+            throw new RuntimeException("Email service not configured (MAIL_USERNAME missing).");
         }
 
-        System.out.println("[EMAIL] Attempting to send email to: " + to);
-        System.out.println("[EMAIL] Subject: " + subject);
-        System.out.println("[EMAIL] From: " + fromAddress + " (" + fromName + ")");
-        System.out.println("[EMAIL] SMTP user: " + smtpUsername);
-
+        log.info("[EMAIL] Sending to={} subject='{}'", to, subject);
         try {
             MimeMessage msg = mailSender.createMimeMessage();
             MimeMessageHelper h = new MimeMessageHelper(msg, true, "UTF-8");
             h.setFrom(new InternetAddress(fromAddress, fromName));
             h.setTo(to);
             h.setSubject(subject);
-            h.setText(htmlBody, true);
+            h.setText(htmlBody, true);   // true = HTML
             mailSender.send(msg);
-            log.info("[EMAIL OK] Sent to={} subject='{}'", to, subject);
-            System.out.println("[EMAIL OK] Email sent successfully to: " + to);
+            log.info("[EMAIL OK] Sent to={}", to);
         } catch (Exception e) {
-            log.error("[EMAIL FAILED] Could not send to={} subject='{}' error={}", to, subject, e.getMessage(), e);
-            System.err.println("[EMAIL FAILED] Error sending to: " + to);
-            e.printStackTrace();
+            log.error("[EMAIL FAILED] to={} error={}", to, e.getMessage(), e);
             throw new RuntimeException("Could not send email to " + to + ": " + e.getMessage(), e);
         }
     }
 
-    /** Send a non-critical email (welcome, confirmation). Logs but does not re-throw. */
+    /** Non-critical send — logs failure, does not re-throw. */
     private void sendHtmlNonCritical(String to, String subject, String htmlBody) {
         try {
             sendHtml(to, subject, htmlBody);
         } catch (Exception e) {
-            log.warn("[EMAIL WARN] Non-critical email failed: to={} reason={}", to, e.getMessage());
-            System.err.println("[EMAIL WARN] Non-critical send failed for: " + to + " — " + e.getMessage());
+            log.warn("[EMAIL WARN] Non-critical send failed: to={} reason={}", to, e.getMessage());
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // TEMPLATE PARTIALS
-    // ═══════════════════════════════════════════════════════════════════════
-
-    private String brandHeader() {
-        return """
-            <div style="text-align:center;margin-bottom:24px;">
-              <div style="font-size:28px;font-weight:800;color:%s;">%s</div>
-              <div style="color:#9ca3af;font-size:13px;margin-top:2px;">%s</div>
-            </div>
-            """.formatted(BRAND_COLOR, BRAND_NAME, BRAND_TAGLINE);
-    }
-
-    private String brandFooter() {
-        return """
-            <p style="color:#9ca3af;font-size:11px;text-align:center;margin:20px 0 0;line-height:1.6;">
-              This email was sent by FreshAI. &copy; 2024 FreshAI, All rights reserved.<br>
-              If you have questions, contact <a href="mailto:support@freshai.com" style="color:%s;">support@freshai.com</a>
-            </p>
-            """.formatted(BRAND_COLOR);
-    }
-
-    /** Escape HTML special chars to prevent injection in name/field values */
+    /** Escape HTML special chars to prevent injection. */
     private String escHtml(String s) {
         if (s == null) return "";
         return s.replace("&", "&amp;")
