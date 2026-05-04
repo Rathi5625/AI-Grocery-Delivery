@@ -6,6 +6,49 @@
 
 SET FOREIGN_KEY_CHECKS = 0;
 
+-- ── MIGRATIONS: Safely add missing columns to existing tables ──
+-- These are idempotent: skip if the column already exists.
+
+-- Add payment_id to orders if missing
+SET @dbname = DATABASE();
+SET @tablename = 'orders';
+SET @columnname = 'payment_id';
+SET @preparedStatement = (SELECT IF(
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+   WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = @tablename AND COLUMN_NAME = @columnname) > 0,
+  'SELECT 1',
+  CONCAT('ALTER TABLE ', @tablename, ' ADD COLUMN ', @columnname, ' VARCHAR(100) DEFAULT NULL')
+));
+PREPARE alterIfNotExists FROM @preparedStatement;
+EXECUTE alterIfNotExists;
+DEALLOCATE PREPARE alterIfNotExists;
+
+-- Add payment_method to orders if missing
+SET @columnname2 = 'payment_method';
+SET @preparedStatement2 = (SELECT IF(
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+   WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = @tablename AND COLUMN_NAME = @columnname2) > 0,
+  'SELECT 1',
+  CONCAT('ALTER TABLE ', @tablename, ' ADD COLUMN ', @columnname2, ' VARCHAR(30) DEFAULT NULL')
+));
+PREPARE alterIfNotExists2 FROM @preparedStatement2;
+EXECUTE alterIfNotExists2;
+DEALLOCATE PREPARE alterIfNotExists2;
+
+-- Add payment_status to orders if missing
+SET @columnname3 = 'payment_status';
+SET @preparedStatement3 = (SELECT IF(
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+   WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = @tablename AND COLUMN_NAME = @columnname3) > 0,
+  'SELECT 1',
+  CONCAT('ALTER TABLE ', @tablename, " ADD COLUMN payment_status ENUM('PENDING','PAID','FAILED','REFUNDED') NOT NULL DEFAULT 'PENDING'")
+));
+PREPARE alterIfNotExists3 FROM @preparedStatement3;
+EXECUTE alterIfNotExists3;
+DEALLOCATE PREPARE alterIfNotExists3;
+
+-- Create payments table if not exists (may be new)
+
 -- ── 1. USERS ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
     id              BIGINT          NOT NULL AUTO_INCREMENT,
@@ -159,6 +202,7 @@ CREATE TABLE IF NOT EXISTS orders (
                        ) NOT NULL DEFAULT 'PENDING',
     payment_method     VARCHAR(30)   DEFAULT NULL,
     payment_status     ENUM('PENDING','PAID','FAILED','REFUNDED') NOT NULL DEFAULT 'PENDING',
+    payment_id         VARCHAR(100)  DEFAULT NULL,
     delivery_address   TEXT          DEFAULT NULL,
     notes              TEXT          DEFAULT NULL,
     carbon_saved       DECIMAL(8,2)  DEFAULT NULL,
@@ -238,6 +282,23 @@ CREATE TABLE IF NOT EXISTS delivery_slots (
         REFERENCES orders(id) ON DELETE SET NULL ON UPDATE CASCADE,
     INDEX idx_slot_date (delivery_date),
     INDEX idx_slot_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 10. PAYMENTS (needs: users, orders) ────────────────────────
+CREATE TABLE IF NOT EXISTS payments (
+    id              BIGINT        NOT NULL AUTO_INCREMENT,
+    user_id         BIGINT        NOT NULL,
+    order_id        BIGINT        NOT NULL,
+    payment_id      VARCHAR(100)  NOT NULL,
+    amount          DECIMAL(12,2) NOT NULL,
+    status          VARCHAR(20)   NOT NULL,
+    created_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_payment_id (payment_id),
+    CONSTRAINT fk_payment_user  FOREIGN KEY (user_id)  REFERENCES users(id)  ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_payment_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    INDEX idx_payment_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

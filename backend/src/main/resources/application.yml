@@ -89,6 +89,10 @@ app:
     expiry-minutes: 10
     max-attempts: 5
 
+  razorpay:
+    key-id: ${RAZORPAY_KEY_ID:rzp_test_dummy}
+    key-secret: ${RAZORPAY_KEY_SECRET:dummy_secret}
+
 # ── Logging ───────────────────────────────────────────────────
 logging:
   level:

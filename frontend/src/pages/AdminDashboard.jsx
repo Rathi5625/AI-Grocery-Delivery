@@ -171,7 +171,7 @@ export default function AdminDashboard() {
                 <motion.div variants={fadeInScale}>
                   <StatCard 
                     title="Revenue" 
-                    value={`$${stats.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
+                    value={`₹${stats.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
                     growth="24%" 
                     growthText="vs last month" 
                     icon={FiDollarSign} 

@@ -164,7 +164,7 @@ export default function ProductDetailsPage() {
             </p>
 
             <div className="text-[34px] font-medium text-[#705E46] mb-2 tracking-tight">
-              ${parseFloat(product.price || 0).toFixed(2)}
+              ₹{parseFloat(product.price || 0).toFixed(2)}
               {(product.weight || product.unit) && (
                 <span className="text-[18px] font-normal text-[#C6C0B9] ml-2">/ {product.weight || product.unit}</span>
               )}
@@ -172,7 +172,7 @@ export default function ProductDetailsPage() {
 
             {product.discountPrice && product.discountPrice < product.price && (
               <div className="text-[14px] text-[#C6C0B9] line-through mb-6">
-                ${parseFloat(product.discountPrice).toFixed(2)}
+                ₹{parseFloat(product.discountPrice).toFixed(2)}
               </div>
             )}
 

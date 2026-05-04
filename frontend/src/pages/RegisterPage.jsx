@@ -1,5 +1,10 @@
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { authPageVariants, fadeInScale } from '../utils/animations';
+import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
+import InputField from '../components/auth/InputField';
+import { authPageVariants } from '../utils/animations';
 
 export default function RegisterPage() {
   const { signup } = useAuth();
@@ -7,32 +12,29 @@ export default function RegisterPage() {
   
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', phone: '' });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [showToast, setShowToast] = useState(false);
 
   const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (loading) return;
-    setError('');
     
     if (!form.firstName || !form.lastName || !form.email || !form.password) {
-      setError('Please fill in all required fields');
+      toast.error('Please fill in all required fields');
       return;
     }
     
     setLoading(true);
     try {
       await signup(form);
-      setShowToast(true);
+      toast.success('Account created successfully! 🎉');
       setTimeout(() => {
         navigate(`/verify-otp?email=${encodeURIComponent(form.email)}`);
       }, 2000);
     } catch (err) {
       const raw = err?.response?.data?.message || err?.userMessage || '';
-      setError(raw || 'Something went wrong. Please try again.');
+      toast.error(raw || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -97,10 +99,6 @@ export default function RegisterPage() {
         className="w-full md:w-[55%] bg-[#f5f5f5] relative flex items-center justify-center p-8 md:p-16 order-2 md:order-none"
       >
         
-        {/* TOAST */}
-        {showToast && <Toast message="Account created successfully" />}
-        {error && <Toast message={error} isError />}
-
         {/* FORM SECTION */}
         <div className="w-full max-w-[440px]">
           <motion.h2 

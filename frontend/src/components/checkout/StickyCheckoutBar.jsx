@@ -7,7 +7,7 @@ export default function StickyCheckoutBar({ total, onPlaceOrder, loading }) {
       <div className="max-w-xl mx-auto px-6 py-4 flex items-center justify-between">
         <div>
           <p className="text-[0.65rem] uppercase tracking-[0.1em] text-[#705E46] font-semibold mb-0.5">TOTAL TO PAY</p>
-          <p className="text-xl font-bold text-[#422701]">${total.toFixed(2)}</p>
+          <p className="text-xl font-bold text-[#422701]">₹{total.toFixed(2)}</p>
         </div>
         
         <button 

@@ -47,7 +47,7 @@ export default function CartItem({ item, onUpdateQuantity, onRemove }) {
           <h3 className="text-base font-semibold text-[#422701] truncate">{item.productName}</h3>
           <p className="text-sm text-[#705E46] mt-0.5">{item.productUnit || 'Standard pack'}</p>
           {item.unitPrice && (
-            <p className="text-xs text-[#C6C0B9] mt-0.5">${Number(item.unitPrice).toFixed(2)} each</p>
+            <p className="text-xs text-[#C6C0B9] mt-0.5">₹{Number(item.unitPrice).toFixed(2)} each</p>
           )}
         </div>
       </div>
@@ -79,7 +79,7 @@ export default function CartItem({ item, onUpdateQuantity, onRemove }) {
 
         {/* Price */}
         <div className="text-lg font-bold text-[#422701] min-w-[70px] text-right">
-          ${totalPrice.toFixed(2)}
+          ₹{totalPrice.toFixed(2)}
         </div>
 
         {/* Remove */}

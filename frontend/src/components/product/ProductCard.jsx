@@ -59,7 +59,7 @@ const ProductCard = ({ product, onAdd }) => {
 
           {/* Footer (Price & Add) */}
           <div className="flex items-center justify-between mt-auto pt-2">
-            <span className="text-[18px] font-bold text-[#422701]">${Number(product.price).toFixed(2)}</span>
+            <span className="text-[18px] font-bold text-[#422701]">₹{Number(product.price).toFixed(2)}</span>
 
             {onAdd && (
               <motion.button

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft } from 'react-icons/fi';
 import { useCart } from '../context/CartContext';
 import { createOrder } from '../api/orderApi';
+import { createPaymentOrder, verifyPayment } from '../api/paymentApi';
 import { getProfile } from '../api/profileApi';
 import toast from 'react-hot-toast';
 
@@ -70,9 +71,8 @@ export default function CheckoutPage() {
   }));
 
   const subtotal = Number(cart?.totalAmount) || uiItems.reduce((acc, item) => acc + item.price, 0);
-  const curationFee = subtotal > 0 ? 2.00 : 0;
-  const deliveryFee = subtotal > 0 && subtotal < 50 ? 5.99 : 0;
-  const total = subtotal + curationFee + deliveryFee;
+  const deliveryFee = subtotal > 0 && subtotal < 500 ? 49.00 : 0;
+  const total = subtotal + deliveryFee;
 
   const handlePlaceOrder = async () => {
     // Validate address
@@ -95,20 +95,102 @@ export default function CheckoutPage() {
 
     setLoading(true);
     try {
-      const res = await createOrder({ 
-        deliveryAddress: addressString, 
-        paymentMethod: selectedPaymentId, 
-        notes: '' 
+      if (selectedPaymentId === 'COD') {
+        const res = await createOrder({ 
+          deliveryAddress: addressString, 
+          paymentMethod: selectedPaymentId, 
+          notes: '' 
+        });
+        toast.success('Order placed successfully! 🎉');
+        await fetchCart();
+        navigate('/order-success', { state: { order: res.data } });
+        return;
+      }
+
+      // Online Payment Flow (Razorpay Standard Checkout)
+      const res = await createPaymentOrder();
+      const orderData = res.data;
+
+      // Use Vite env var (safe, public key) — backend value as fallback
+      const razorpayKeyId =
+        import.meta.env.VITE_RAZORPAY_KEY_ID || orderData.keyId;
+
+      if (!razorpayKeyId) {
+        toast.error('Payment configuration error. Please contact support.');
+        setLoading(false);
+        return;
+      }
+
+      const options = {
+        key: razorpayKeyId,
+        amount: orderData.amount,           // in paise
+        currency: orderData.currency,       // "INR"
+        name: 'FreshAI',
+        description: 'Grocery Order',
+        image: 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=80&q=80',
+        order_id: orderData.orderId,        // Razorpay order_id from backend
+
+        // ── Called when payment is completed successfully ──────────────────
+        handler: async function (response) {
+          try {
+            setLoading(true);
+            const verifyRes = await verifyPayment({
+              razorpayOrderId:   response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+              orderData: {
+                deliveryAddress: addressString,
+                paymentMethod:   'ONLINE',
+                notes:           ''
+              }
+            });
+            toast.success('Payment successful! Order placed. 🎉');
+            await fetchCart();
+            navigate('/order-success', { state: { order: verifyRes.data } });
+          } catch (err) {
+            toast.error(
+              err?.response?.data?.message ||
+              err.userMessage ||
+              'Payment verification failed. Contact support if amount was deducted.'
+            );
+          } finally {
+            setLoading(false);
+          }
+        },
+
+        prefill: {
+          name:    customAddress.name  || 'Customer',
+          contact: customAddress.phone || '9999999999',
+        },
+
+        notes: {
+          address: addressString
+        },
+
+        theme: {
+          color: '#422701'
+        },
+
+        // ── Called when user closes the modal ─────────────────────────────
+        modal: {
+          ondismiss: function () {
+            setLoading(false);
+            toast('Payment cancelled. Your cart is saved.', { icon: 'ℹ️' });
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (response) {
+        toast.error(
+          'Payment failed: ' +
+          (response.error.description || response.error.reason || 'Unknown error')
+        );
       });
-      
-      toast.success('Order placed successfully! 🎉');
-      
-      // Cart should be empty in backend now. Sync context:
-      await fetchCart();
-      
-      navigate('/order-success', { state: { order: res.data } });
+      rzp.open();
+
     } catch (err) {
-      toast.error(err.userMessage || 'Failed to place order. Please try again.');
+      toast.error(err?.response?.data?.message || err.userMessage || 'Failed to initialize payment.');
     } finally {
       setLoading(false);
     }
@@ -153,7 +235,6 @@ export default function CheckoutPage() {
           <OrderSummary 
             items={uiItems}
             subtotal={subtotal}
-            curationFee={curationFee}
             deliveryFee={deliveryFee}
             total={total}
           />

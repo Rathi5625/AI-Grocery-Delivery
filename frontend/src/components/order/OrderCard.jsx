@@ -62,7 +62,7 @@ export default function OrderCard({ order }) {
         
         {/* Price & Action */}
         <div className="flex justify-between items-center mt-auto">
-          <span className="text-[1.3rem] font-bold text-[#422701]">${total.toFixed(2)}</span>
+          <span className="text-[1.3rem] font-bold text-[#422701]">₹{total.toFixed(2)}</span>
           <button className="bg-[#D6B588] text-[#422701] px-5 py-2.5 rounded-lg text-sm font-medium transition-colors group-hover:bg-[#cba878]">
             View Details
           </button>

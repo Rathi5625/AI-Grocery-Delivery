@@ -51,7 +51,7 @@ export default function ProductTable({ products, onEdit, onDelete }) {
                   </span>
                 </td>
                 <td className="py-4 px-6 text-[#422701] font-bold text-[1.05rem]">
-                  ${Number(product.price).toFixed(2)}
+                  ₹{Number(product.price).toFixed(2)}
                 </td>
                 <td className="py-4 px-6">
                   <span className={`font-bold text-[0.95rem] ${product.stockQuantity === 0 ? 'text-red-600' : product.stockQuantity < 10 ? 'text-[#e28833]' : 'text-[#422701]'}`}>

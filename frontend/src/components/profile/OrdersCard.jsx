@@ -72,7 +72,7 @@ const OrdersCard = ({ hook }) => {
                 <div className="flex items-center justify-between border-t border-[#EAE5DF] pt-5 mt-auto">
                   <span className="text-[14px] text-[#705E46]">{date}</span>
                   <span className="text-[16px] font-bold text-[#422701]">
-                    ${parseFloat(order.totalAmount || 0).toFixed(2)}
+                    ₹{parseFloat(order.totalAmount || 0).toFixed(2)}
                   </span>
                 </div>
               </div>

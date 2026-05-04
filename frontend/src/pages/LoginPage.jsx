@@ -1,5 +1,10 @@
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { authPageVariants, fadeInScale } from '../utils/animations';
+import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
+import InputField from '../components/auth/InputField';
+import { authPageVariants } from '../utils/animations';
 
 export default function LoginPage() {
   const { login } = useAuth();

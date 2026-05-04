@@ -135,7 +135,7 @@ export default function OrderRow({ order, onStatusChange }) {
 
       {/* Total */}
       <td className="py-5 px-6 text-[#422701] text-[1.05rem] tracking-wide">
-        ${Number(total).toFixed(2)}
+        ₹{Number(total).toFixed(2)}
       </td>
     </tr>
   );

@@ -104,7 +104,7 @@ export default function OrderDetailsPage() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <span className="font-medium text-[#422701]">${Number(item.totalPrice || 0).toFixed(2)}</span>
+                  <span className="font-medium text-[#422701]">₹{Number(item.totalPrice || 0).toFixed(2)}</span>
                 </div>
               </div>
             ))}
@@ -119,12 +119,12 @@ export default function OrderDetailsPage() {
             <div className="space-y-3 mb-5 border-b border-[#C6C0B9]/20 pb-5">
               <div className="flex justify-between text-[#705E46] text-[0.95rem]">
                 <span>Total Amount</span>
-                <span>${subtotal.toFixed(2)}</span>
+                <span>₹{subtotal.toFixed(2)}</span>
               </div>
             </div>
             <div className="flex justify-between items-center text-[#422701] font-bold text-[1.2rem]">
               <span>Total Paid</span>
-              <span>${subtotal.toFixed(2)}</span>
+              <span>₹{subtotal.toFixed(2)}</span>
             </div>
             
             <div className="mt-6 flex items-start gap-3 text-[#705E46] text-[0.9rem] bg-[#FDFBF7] p-4 rounded-xl border border-[#C6C0B9]/20">

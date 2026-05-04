@@ -60,7 +60,7 @@ const ProductCard = ({ product, onAdd }) => {
           {/* Footer (Price & Add) */}
           <div className="flex items-center justify-between mt-auto pt-2">
             <div className="flex items-baseline gap-1">
-              <span className="text-[22px] font-bold text-[#422701]">${Number(product.price).toFixed(2)}</span>
+              <span className="text-[22px] font-bold text-[#422701]">₹{Number(product.price).toFixed(2)}</span>
               {(product.weight || product.unit) && (
                 <span className="text-[12px] font-medium text-[#705E46]">/ {product.weight || product.unit}</span>
               )}

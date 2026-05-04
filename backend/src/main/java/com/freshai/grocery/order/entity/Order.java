@@ -58,6 +58,9 @@ public class Order {
     @Builder.Default
     private PaymentStatus paymentStatus = PaymentStatus.PENDING;
 
+    @Column(name = "payment_id", length = 100)
+    private String paymentId;
+
     @Column(name = "delivery_address", columnDefinition = "TEXT")
     private String deliveryAddress;
 
