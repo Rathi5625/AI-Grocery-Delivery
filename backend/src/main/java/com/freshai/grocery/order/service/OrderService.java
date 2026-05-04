@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -189,6 +190,15 @@ public class OrderService {
         return orderRepository
                 .findAll(PageRequest.of(page, size, Sort.by("createdAt").descending()))
                 .map(o -> toDTO(o, true));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<OrderDTO> searchOrders(int page, int size,
+                                       com.freshai.grocery.order.entity.Order.OrderStatus status,
+                                       String query) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        return orderRepository.searchOrders(status, query, pageable)
+                .map(o -> toDTO(o, false));
     }
 
     @Transactional

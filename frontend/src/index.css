@@ -6,13 +6,13 @@
    ================================================================ */
 
 :root {
-  /* ── Brand Colors ── */
-  --primary: #0c8a5f;
-  --primary-hover: #0a7552;
-  --primary-pressed: #086344;
-  --primary-light: #e8f5ef;
-  --primary-lighter: #f0faf5;
-  --primary-gradient: linear-gradient(135deg, #0c8a5f 0%, #10b77f 100%);
+  /* ── Brand Colors (Earth-Tone Theme) ── */
+  --primary: #422701;
+  --primary-hover: #2b1a00;
+  --primary-pressed: #1a0f00;
+  --primary-light: #D6B588;
+  --primary-lighter: #F2ECE4;
+  --primary-gradient: linear-gradient(135deg, #422701 0%, #705E46 100%);
 
   /* ── Accent Colors ── */
   --accent-orange: #ff6922;
@@ -270,7 +270,7 @@ select {
 .navbar__search:focus-within {
   border-color: var(--primary);
   background: white;
-  box-shadow: 0 0 0 3px rgba(12, 138, 95, 0.08);
+  box-shadow: 0 0 0 3px rgba(66, 39, 1, 0.08);
 }
 
 .navbar__search input {
@@ -342,7 +342,7 @@ select {
 .navbar__cart-btn:hover {
   background: var(--primary-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(12, 138, 95, 0.3);
+  box-shadow: 0 4px 12px rgba(66, 39, 1, 0.3);
 }
 
 .navbar__cart-btn:active {
@@ -423,7 +423,7 @@ select {
 .btn--primary:hover {
   background: var(--primary-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(12, 138, 95, 0.25);
+  box-shadow: 0 4px 14px rgba(66, 39, 1, 0.25);
 }
 
 .btn--primary:active {
@@ -6020,6 +6020,7 @@ select {
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
 }
+
 /* ================================================================
    NEW LANDING PAGE (lp) & PRODUCT PAGES
    ================================================================ */

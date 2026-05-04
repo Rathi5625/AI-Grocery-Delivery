@@ -1,144 +1,117 @@
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../context/CartContext';
-import { CartItemSkeleton } from '../components/ui/Skeletons';
-import { FiMinus, FiPlus, FiTrash2, FiShoppingBag, FiArrowRight } from 'react-icons/fi';
-import { RiLeafLine } from 'react-icons/ri';
-import toast from 'react-hot-toast';
+import CartItem from '../components/cart/CartItem';
+import OrderSummary from '../components/cart/OrderSummary';
 
 export default function CartPage() {
-    const { cart, loading, fetchCart, updateItem, removeItem } = useCart();
+  const { cart, loading, fetchCart, updateItem, removeItem } = useCart();
 
-    useEffect(() => { fetchCart(); }, [fetchCart]);
+  useEffect(() => {
+    fetchCart();
+  }, [fetchCart]);
 
-    const handleQty = async (itemId, newQty) => {
-        try { await updateItem(itemId, newQty); }
-        catch { toast.error('Failed to update'); }
-    };
-
-    const handleRemove = async (itemId) => {
-        try { await removeItem(itemId); toast.success('Item removed'); }
-        catch { toast.error('Failed to remove'); }
-    };
-
-    if (!loading && (cart.items?.length ?? 0) === 0) {
-        return (
-            <div className="cart-page">
-                <motion.div className="empty-state" style={{ marginTop: 'var(--space-10)' }} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                    <div className="empty-state__icon">🛒</div>
-                    <h3 className="empty-state__title">Your cart is empty</h3>
-                    <p className="empty-state__text">Add some fresh, sustainable products</p>
-                    <Link to="/products" className="btn btn--primary btn--lg"><FiShoppingBag /> Start Shopping</Link>
-                </motion.div>
-            </div>
-        );
+  const handleQty = async (itemId, newQty) => {
+    if (newQty < 1) return;
+    try {
+      await updateItem(itemId, newQty);
+    } catch (err) {
+      console.error('Failed to update quantity', err);
     }
+  };
 
-    const deliveryFee = parseFloat(cart.totalAmount || 0) >= 500 ? 0 : 49;
-    const total = (parseFloat(cart.totalAmount || 0) + deliveryFee).toFixed(2);
+  const handleRemove = async (itemId) => {
+    try {
+      await removeItem(itemId);
+    } catch (err) {
+      console.error('Failed to remove item', err);
+    }
+  };
 
-    return (
-        <motion.div className="cart-page" id="cart-page" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-            <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 800 }}>My Cart</h1>
-            <p style={{ color: 'var(--gray-400)', marginTop: 4, fontSize: 'var(--text-sm)' }}>
-                {cart.itemCount} item{cart.itemCount !== 1 ? 's' : ''} in your cart
-            </p>
+  const items = cart?.items || [];
 
-            <div className="cart-page__layout">
-                {/* Cart Items */}
-                <div>
-                    {loading ? (
-                        Array.from({ length: 3 }).map((_, i) => <CartItemSkeleton key={i} />)
-                    ) : (
-                        <AnimatePresence>
-                            {cart.items.map((item) => (
-                                <motion.div
-                                    className="cart-item"
-                                    key={item.id}
-                                    id={`cart-item-${item.id}`}
-                                    layout
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: 20, height: 0, marginBottom: 0, padding: 0 }}
-                                    transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-                                >
-                                    <img src={item.productImage || 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?w=200'} alt={item.productName} className="cart-item__image" />
-                                    <div className="cart-item__info">
-                                        <h3 className="cart-item__name">{item.productName}</h3>
-                                        <p className="cart-item__unit">{item.productUnit}</p>
-                                        <div className="cart-item__bottom">
-                                            <div className="qty-control">
-                                                <button className="qty-control__btn" onClick={() => handleQty(item.id, item.quantity - 1)}>
-                                                    {item.quantity === 1 ? <FiTrash2 size={13} /> : <FiMinus size={14} />}
-                                                </button>
-                                                <AnimatePresence mode="wait">
-                                                    <motion.span className="qty-control__value" key={item.quantity} initial={{ y: -6, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 6, opacity: 0 }} transition={{ duration: 0.12 }}>
-                                                        {item.quantity}
-                                                    </motion.span>
-                                                </AnimatePresence>
-                                                <button className="qty-control__btn" onClick={() => handleQty(item.id, item.quantity + 1)}>
-                                                    <FiPlus size={14} />
-                                                </button>
-                                            </div>
-                                            <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                <span className="cart-item__price">₹{item.totalPrice?.toFixed(2)}</span>
-                                                <button className="cart-item__remove" onClick={() => handleRemove(item.id)}><FiTrash2 size={14} /></button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </motion.div>
-                            ))}
-                        </AnimatePresence>
-                    )}
+  // Use cart-provided totals where available, compute as fallback
+  const subtotal = Number(cart?.totalAmount) || items.reduce((acc, item) => acc + Number(item.totalPrice || 0), 0);
+  const totalQty = items.reduce((acc, item) => acc + (item.quantity || 0), 0);
+  const deliveryFee = subtotal > 0 && subtotal < 50 ? 5.99 : 0;
+  const serviceFee  = subtotal > 0 ? 2.50 : 0;
+  const total       = subtotal + deliveryFee + serviceFee;
 
-                    {/* AI Tip */}
-                    {!loading && cart.items.length > 0 && (
-                        <motion.div className="ai-tip" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-                            <div className="ai-tip__header">
-                                <RiLeafLine color="var(--primary)" size={16} />
-                                <span className="ai-tip__label">AI Eco Tip</span>
-                            </div>
-                            <p className="ai-tip__text">
-                                Switch to Oat Milk to save 40% water and reduce CO₂ by 2.3kg/L. Your cart's footprint is 15% below average! 🌍
-                            </p>
-                        </motion.div>
-                    )}
+  return (
+    <div className="min-h-screen bg-[#FAF8F5] font-sans">
+      <main className="max-w-7xl mx-auto px-6 md:px-8 py-12 md:py-16">
+        <h1 className="text-4xl md:text-5xl font-medium text-[#422701] mb-12">Your Cart</h1>
+
+        {loading ? (
+          /* ── Skeleton ── */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+            <div className="lg:col-span-7 xl:col-span-8 space-y-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="animate-pulse flex p-4 bg-[#F2ECE4] rounded-2xl gap-4">
+                  <div className="w-20 h-20 bg-[#C6C0B9]/30 rounded-xl shrink-0" />
+                  <div className="flex-1 space-y-2 py-2">
+                    <div className="h-4 bg-[#C6C0B9]/30 rounded w-1/3" />
+                    <div className="h-3 bg-[#C6C0B9]/30 rounded w-1/4" />
+                  </div>
+                  <div className="h-8 w-28 bg-[#C6C0B9]/30 rounded-full self-center" />
+                  <div className="h-6 w-16 bg-[#C6C0B9]/30 rounded self-center" />
                 </div>
-
-                {/* Summary */}
-                <motion.div className="cart-summary" id="cart-summary" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-                    <h3 className="cart-summary__title">Order Summary</h3>
-                    <div className="cart-summary__row">
-                        <span>Subtotal ({cart.itemCount} items)</span>
-                        <span style={{ fontWeight: 600, color: 'var(--gray-800)' }}>₹{parseFloat(cart.totalAmount || 0).toFixed(2)}</span>
-                    </div>
-                    <div className="cart-summary__row">
-                        <span>Delivery</span>
-                        <span style={{ color: deliveryFee === 0 ? 'var(--primary)' : 'var(--gray-800)', fontWeight: 600 }}>
-                            {deliveryFee === 0 ? 'FREE' : `₹${deliveryFee}`}
-                        </span>
-                    </div>
-                    {deliveryFee > 0 && (
-                        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--primary)', fontWeight: 600, margin: '0 0 8px' }}>
-                        Add ₹{(500 - parseFloat(cart.totalAmount)).toFixed(0)} more for free delivery!
-                        </p>
-                    )}
-                    <div className="cart-summary__row cart-summary__row--total">
-                        <span>Total</span>
-                        <span>₹{total}</span>
-                    </div>
-
-                    <div className="cart-summary__eco">
-                        <RiLeafLine size={15} />
-                        <span>Carbon: ~12kg CO₂e (15% below avg)</span>
-                    </div>
-
-                    <Link to="/checkout" className="btn btn--primary btn--lg btn--full" style={{ marginTop: 'var(--space-5)' }} id="checkout-btn">
-                        Proceed to Checkout <FiArrowRight />
-                    </Link>
-                </motion.div>
+              ))}
             </div>
-        </motion.div>
-    );
+            <div className="lg:col-span-5 xl:col-span-4 h-[340px] bg-[#F2ECE4] rounded-2xl animate-pulse" />
+          </div>
+
+        ) : items.length === 0 ? (
+          /* ── Empty state ── */
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="py-24 text-center max-w-md mx-auto"
+          >
+            <div className="text-6xl mb-6">🛒</div>
+            <h2 className="text-2xl text-[#422701] font-medium mb-4">Your cart is empty</h2>
+            <p className="text-[#705E46] mb-8">Add some fresh, organic products to get started</p>
+            <Link
+              to="/shop"
+              className="inline-flex items-center gap-2 px-8 py-3.5 bg-[#D6B588] text-[#422701] rounded-xl font-semibold hover:bg-[#c9a778] transition-colors shadow-sm"
+            >
+              Go to Shop
+            </Link>
+          </motion.div>
+
+        ) : (
+          /* ── Cart content ── */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+
+            {/* Items list */}
+            <div className="lg:col-span-7 xl:col-span-8">
+              <AnimatePresence mode="popLayout">
+                {items.map((item) => (
+                  <CartItem
+                    key={item.id}
+                    item={item}
+                    onUpdateQuantity={handleQty}
+                    onRemove={handleRemove}
+                  />
+                ))}
+              </AnimatePresence>
+            </div>
+
+            {/* Order summary */}
+            <div className="lg:col-span-5 xl:col-span-4 w-full">
+              <OrderSummary
+                itemCount={totalQty}
+                subtotal={subtotal}
+                deliveryFee={deliveryFee}
+                serviceFee={serviceFee}
+                total={total}
+              />
+            </div>
+
+          </div>
+        )}
+      </main>
+    </div>
+  );
 }

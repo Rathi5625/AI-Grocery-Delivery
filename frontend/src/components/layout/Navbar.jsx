@@ -49,13 +49,26 @@ export default function Navbar() {
     ? `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase()
     : 'U';
 
+  const isLanding = location.pathname === '/';
+  const isTransparent = isLanding && !scrolled;
+
   return (
-    <nav className={`nav2 ${scrolled ? 'nav2--scrolled' : ''}`} id="main-navbar">
+    <nav 
+      className={`nav2 ${scrolled ? 'nav2--scrolled' : ''} ${isTransparent ? 'nav2--transparent' : ''}`} 
+      id="main-navbar"
+      style={isTransparent ? { backgroundColor: 'transparent', borderBottom: 'none', boxShadow: 'none' } : {}}
+    >
       <div className="nav2__inner">
 
         {/* ── Logo ── */}
         <Link to="/" className="nav2__logo" id="nav-logo">
-          <span className="nav2__logo-icon"><RiLeafLine size={16} /></span>
+          <motion.span 
+            className="nav2__logo-icon"
+            whileHover={{ rotate: 10, scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+          >
+            <RiLeafLine size={16} />
+          </motion.span>
           <span>FreshAI</span>
         </Link>
 
@@ -80,8 +93,26 @@ export default function Navbar() {
         {/* ── Right actions ── */}
         <div className="nav2__actions">
           <div className="nav2__links">
-            <Link to="/" className={`nav2__link ${isActive('/') ? 'nav2__link--active' : ''}`}>Home</Link>
-            <Link to="/products" className={`nav2__link ${isActive('/products') ? 'nav2__link--active' : ''}`}>Shop</Link>
+            <Link to="/" className={`nav2__link ${isActive('/') ? 'nav2__link--active' : ''}`}>
+              Home
+              {isActive('/') && (
+                <motion.div 
+                  layoutId="nav-active" 
+                  className="absolute bottom-[-18px] left-0 right-0 h-[3px] bg-[#422701] rounded-full"
+                  transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                />
+              )}
+            </Link>
+            <Link to="/products" className={`nav2__link ${isActive('/products') ? 'nav2__link--active' : ''}`}>
+              Shop
+              {isActive('/products') && (
+                <motion.div 
+                  layoutId="nav-active" 
+                  className="absolute bottom-[-18px] left-0 right-0 h-[3px] bg-[#422701] rounded-full"
+                  transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                />
+              )}
+            </Link>
           </div>
 
           {/* Mobile search toggle */}
@@ -157,7 +188,7 @@ export default function Navbar() {
                       </div>
                       <div className="nav2__drop-divider" />
                       <Link to="/profile" className="nav2__drop-item" id="profile-link"><FiUser size={14} /> My Profile</Link>
-                      <Link to="/cart"    className="nav2__drop-item" id="orders-link"> <FiPackage size={14} /> My Orders</Link>
+                      <Link to="/orders" className="nav2__drop-item" id="orders-link"><FiPackage size={14} /> My Orders</Link>
                       {user?.role === 'ADMIN' && (
                         <Link to="/admin" className="nav2__drop-item" id="admin-link"><FiSettings size={14} /> Admin Panel</Link>
                       )}

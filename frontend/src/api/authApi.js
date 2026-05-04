@@ -7,6 +7,10 @@ export const refreshToken = (refreshToken) =>
   API.post('/auth/refresh', { refreshToken });
 
 // ── Forgot Password (3-step unauthenticated flow) ────────────
+/** Simple alias: POST /api/auth/forgot-password { email } → always returns success */
+export const forgotPassword = (email) =>
+  API.post('/auth/forgot-password', { email });
+
 /** Step 1: Request OTP — always returns success regardless of email existence */
 export const forgotPasswordRequest = (email) =>
   API.post('/auth/forgot-password/request', { email });
@@ -17,4 +21,5 @@ export const forgotPasswordVerify = (email, otpCode) =>
 
 /** Step 3: Reset password — needs valid OTP and new password */
 export const forgotPasswordReset = (email, otpCode, newPassword) =>
-  API.post('/auth/forgot-password/reset', { email, otpCode, newPassword });
+  API.post('/auth/forgot-password/reset', { email, otpCode, newPassword, purpose: 'PASSWORD_RESET' });
+

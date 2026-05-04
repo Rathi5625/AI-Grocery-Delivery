@@ -19,12 +19,22 @@ public class ProductController {
     private final ProductService productService;
 
     /** GET /api/products?page=0&size=12&sortBy=name&direction=asc */
+    /** GET /api/products?page=0&size=12&sortBy=name&direction=asc&category=fruits&search=apple */
     @GetMapping
     public ResponseEntity<ApiResponse<Page<ProductDTO>>> getAllProducts(
             @RequestParam(defaultValue = "0")    int page,
             @RequestParam(defaultValue = "12")   int size,
             @RequestParam(defaultValue = "name") String sortBy,
-            @RequestParam(defaultValue = "asc")  String direction) {
+            @RequestParam(defaultValue = "asc")  String direction,
+            @RequestParam(required = false)      String category,
+            @RequestParam(required = false)      String search) {
+        
+        if (search != null && !search.isBlank()) {
+            return ResponseEntity.ok(ApiResponse.ok(productService.searchProducts(search, page, size)));
+        }
+        if (category != null && !category.isBlank()) {
+            return ResponseEntity.ok(ApiResponse.ok(productService.getProductsByCategorySlug(category, page, size)));
+        }
         return ResponseEntity.ok(ApiResponse.ok(productService.getAllProducts(page, size, sortBy, direction)));
     }
 

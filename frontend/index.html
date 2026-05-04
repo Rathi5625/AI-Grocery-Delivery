@@ -6,6 +6,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="FreshAI - AI-powered sustainable grocery delivery. Fresh produce, personalized recommendations, and eco-friendly packaging delivered to your door." />
     <title>FreshAI — AI Grocery Delivery Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        corePlugins: {
+          preflight: false,
+        },
+        theme: {
+          extend: {
+            colors: {
+              earth: {
+                900: '#422701', // Dark Earth
+                800: '#705E46', // Medium Earth
+                400: '#C6C0B9', // Light Stone
+                200: '#D6B588', // Sand
+                100: '#F2ECE4', // Light Sand
+                50:  '#FAF7F2'  // Off-white
+              }
+            }
+          }
+        }
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

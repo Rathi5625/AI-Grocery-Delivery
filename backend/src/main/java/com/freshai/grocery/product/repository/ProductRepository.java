@@ -15,6 +15,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     Page<Product> findByCategoryIdAndIsActiveTrue(Long categoryId, Pageable pageable);
 
+    Page<Product> findByCategorySlugAndIsActiveTrue(String categorySlug, Pageable pageable);
+
     @Query("SELECT p FROM Product p WHERE p.isActive = true AND (LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(p.description) LIKE LOWER(CONCAT('%', :query, '%')))")
     Page<Product> searchProducts(@Param("query") String query, Pageable pageable);
 
@@ -41,7 +43,15 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category ORDER BY p.name ASC")
     List<Product> findAllWithCategory();
 
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category " +
+           "WHERE (:query IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "OR LOWER(p.category.name) LIKE LOWER(CONCAT('%', :query, '%'))) " +
+           "ORDER BY p.name ASC")
+    List<Product> searchAllWithCategory(@Param("query") String query);
+
     /** Admin: low-stock products with category eagerly loaded */
     @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category WHERE p.isActive = true AND p.stockQuantity <= :threshold ORDER BY p.stockQuantity ASC")
     List<Product> findLowStockWithCategory(@Param("threshold") int threshold);
+
+    long countByIsOrganicTrue();
 }

@@ -39,6 +39,15 @@ public class ForgotPasswordController {
     private final PasswordEncoder passwordEncoder;
     private final EmailService    emailService;
 
+    // ── SIMPLE ALIAS ─ POST /api/auth/forgot-password { email } ─────────────
+    // Satisfies the single-endpoint spec while delegating to the same OTP logic.
+    // Always returns a generic message (prevents user enumeration).
+    @PostMapping
+    public ResponseEntity<ApiResponse<Map<String, String>>> forgotPasswordAlias(
+            @RequestBody Map<String, String> payload) {
+        return requestReset(payload); // delegate to Step 1
+    }
+
     // ── STEP 1 ─ Request OTP ────────────────────────────────────────────────
 
     @PostMapping("/request")
@@ -62,6 +71,7 @@ public class ForgotPasswordController {
             "OTP sent"
         ));
     }
+
 
     // ── STEP 2 ─ Verify OTP (pre-check for UX only) ─────────────────────────
 

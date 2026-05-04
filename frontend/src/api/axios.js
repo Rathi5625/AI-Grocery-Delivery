@@ -29,18 +29,30 @@ API.interceptors.response.use(
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
       // Only redirect if not already on auth pages
-      if (!window.location.pathname.startsWith('/login') &&
-          !window.location.pathname.startsWith('/register')) {
+      if (
+        !window.location.pathname.startsWith('/login') &&
+        !window.location.pathname.startsWith('/register') &&
+        !window.location.pathname.startsWith('/forgot-password') &&
+        !window.location.pathname.startsWith('/reset-link-sent')
+      ) {
+        // Import toast lazily to avoid circular deps
+        import('react-hot-toast').then(({ default: toast }) => {
+          toast.error('Session expired. Please sign in again.');
+        });
         window.location.href = '/login';
       }
     }
-    // Extract backend error message if available
+
+    // Attach a friendly message so callers can use err.userMessage
     const msg =
       error.response?.data?.message ||
       error.response?.data?.error ||
       error.message ||
       'An unexpected error occurred';
     error.userMessage = msg;
+
+    // NOTE: We do NOT show a global toast here — each page/component
+    // handles its own error toasts to avoid duplicate messages.
     return Promise.reject(error);
   }
 );

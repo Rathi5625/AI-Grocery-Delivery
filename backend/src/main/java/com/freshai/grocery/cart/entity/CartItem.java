@@ -1,5 +1,6 @@
 package com.freshai.grocery.cart.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.freshai.grocery.product.entity.Product;
 import jakarta.persistence.*;
 import lombok.*;
@@ -25,6 +26,9 @@ public class CartItem {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cart_id", nullable = false)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @JsonIgnore
     private Cart cart;
 
     @ManyToOne(fetch = FetchType.EAGER)

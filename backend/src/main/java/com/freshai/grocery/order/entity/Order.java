@@ -1,5 +1,6 @@
 package com.freshai.grocery.order.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.freshai.grocery.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -25,6 +26,9 @@ public class Order {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnore
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private User user;
 
     @Column(nullable = false, precision = 12, scale = 2)
@@ -65,9 +69,15 @@ public class Order {
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
+    @JsonIgnore
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private List<OrderItem> orderItems = new ArrayList<>();
 
     @OneToOne(mappedBy = "order", cascade = CascadeType.ALL)
+    @JsonIgnore
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private DeliverySlot deliverySlot;
 
     @Column(name = "created_at", updatable = false)

@@ -6,10 +6,11 @@ import API from '../api/axios';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import ProductCard from '../components/product/ProductCard';
-import { ProductGridSkeleton } from '../components/ui/Skeletons';
 import toast from 'react-hot-toast';
 import { FiFilter, FiX } from 'react-icons/fi';
 import { RiLeafLine } from 'react-icons/ri';
+import { ProductSkeleton } from '../components/common/Skeleton';
+import { staggerContainer, fadeInScale } from '../utils/animations';
 
 export default function ProductListPage() {
   const [products, setProducts]     = useState([]);
@@ -52,7 +53,6 @@ export default function ProductListPage() {
       }
 
       const pageData = res.data;
-      // Spring Page: { content, totalPages, totalElements } OR raw array
       let content    = pageData?.content ?? (Array.isArray(pageData) ? pageData : []);
       if (organicOnly) content = content.filter(p => p.isOrganic);
       setProducts(content);
@@ -93,15 +93,19 @@ export default function ProductListPage() {
       {/* ── Page Header ── */}
       <div className="products-page__header">
         <div className="products-page__header-inner">
-          <div>
+          <motion.div
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.1 }}
+          >
             <h1 className="products-page__title">
               {query ? `Results for "${query}"` : 'All Products'}
             </h1>
             <p className="products-page__subtitle">
-              {loading ? 'Loading…' : `${totalElements || products.length} products found`}
+              {loading ? 'Searching fresh pantry…' : `${totalElements || products.length} products found`}
               {!query && ' · Sustainably sourced'}
             </p>
-          </div>
+          </motion.div>
           {/* Mobile filter toggle */}
           <button
             className="btn btn--outline btn--sm products-page__filter-toggle"
@@ -198,7 +202,9 @@ export default function ProductListPage() {
         {/* ── Product Grid ── */}
         <main className="products-main">
           {loading ? (
-            <ProductGridSkeleton count={12} />
+            <div className="product-grid">
+              {[...Array(12)].map((_, i) => <ProductSkeleton key={i} />)}
+            </div>
           ) : products.length === 0 ? (
             <motion.div
               className="empty-state"
@@ -216,13 +222,15 @@ export default function ProductListPage() {
           ) : (
             <>
               <motion.div
+                variants={staggerContainer}
+                initial="initial"
+                animate="animate"
                 className="product-grid"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
               >
                 {products.map((product, i) => (
-                  <ProductCard key={product.id} product={product} onAddToCart={handleAdd} index={i} />
+                  <motion.div key={product.id} variants={fadeInScale}>
+                    <ProductCard product={product} onAdd={() => handleAdd(product.id)} />
+                  </motion.div>
                 ))}
               </motion.div>
 

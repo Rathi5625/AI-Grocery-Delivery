@@ -1,5 +1,6 @@
 package com.freshai.grocery.cart.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.freshai.grocery.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -22,14 +23,18 @@ public class Cart {
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", unique = true, nullable = false)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @JsonIgnore
     private User user;
 
     @Column(name = "total_amount", precision = 12, scale = 2)
     @Builder.Default
     private BigDecimal totalAmount = BigDecimal.ZERO;
 
-    @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @Builder.Default
+    @JsonIgnore
     private List<CartItem> items = new ArrayList<>();
 
     @Column(name = "created_at", updatable = false)

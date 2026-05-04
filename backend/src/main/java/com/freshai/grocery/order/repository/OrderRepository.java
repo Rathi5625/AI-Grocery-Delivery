@@ -14,27 +14,42 @@ import java.util.Optional;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
+    long countByCreatedAtAfter(LocalDateTime since);
+
     Page<Order> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
 
     Optional<Order> findByOrderNumber(String orderNumber);
 
-    // Fixed: Use string literal comparison for @Enumerated(EnumType.STRING) fields
-    @Query("SELECT COUNT(o) FROM Order o WHERE o.status = 'PENDING'")
-    long countPendingOrders();
+    long countByStatus(Order.OrderStatus status);
 
-    // Fixed: exclude CANCELLED and REFUNDED using string literals
+    default long countPendingOrders() {
+        return countByStatus(Order.OrderStatus.PENDING);
+    }
+
     @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o " +
-           "WHERE o.status NOT IN ('CANCELLED', 'REFUNDED')")
-    BigDecimal calculateTotalRevenue();
+           "WHERE o.status NOT IN (:excludedStatuses)")
+    BigDecimal calculateTotalRevenueWithExclusions(@Param("excludedStatuses") List<Order.OrderStatus> excludedStatuses);
 
-    // Fixed: use native SQL for DATE() and date arithmetic — HQL doesn't support these
+    default BigDecimal calculateTotalRevenue() {
+        return calculateTotalRevenueWithExclusions(
+            List.of(Order.OrderStatus.CANCELLED, Order.OrderStatus.REFUNDED)
+        );
+    }
+
     @Query(value = "SELECT DATE(o.created_at) as day, SUM(o.total_amount) as revenue " +
                    "FROM orders o " +
                    "WHERE o.status NOT IN ('CANCELLED', 'REFUNDED') " +
-                   "AND o.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) " +
-                   "GROUP BY DATE(o.created_at) ORDER BY day DESC",
+                   "AND o.created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) " +
+                   "GROUP BY DATE(o.created_at) ORDER BY day ASC",
            nativeQuery = true)
-    List<Object[]> getDailyRevenueLast30Days();
+    List<Object[]> getDailyRevenueLast7Days();
+
+    @Query(value = "SELECT DATE(o.created_at) as day, COUNT(o.id) as count " +
+                   "FROM orders o " +
+                   "WHERE o.created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) " +
+                   "GROUP BY DATE(o.created_at) ORDER BY day ASC",
+           nativeQuery = true)
+    List<Object[]> getDailyOrdersLast7Days();
 
     // Fixed: count by status — works fine with GROUP BY
     @Query("SELECT o.status, COUNT(o) FROM Order o GROUP BY o.status")
@@ -44,4 +59,14 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("SELECT o FROM Order o WHERE o.user = :user ORDER BY o.createdAt DESC")
     Page<Order> findByUserOrderByCreatedAtDesc(
             @Param("user") com.freshai.grocery.user.entity.User user, Pageable pageable);
+
+    @Query("SELECT o FROM Order o " +
+           "WHERE (:status IS NULL OR o.status = :status) " +
+           "AND (:query IS NULL OR " +
+           "LOWER(o.orderNumber) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(o.user.firstName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(o.user.lastName) LIKE LOWER(CONCAT('%', :query, '%')))")
+    Page<Order> searchOrders(@Param("status") Order.OrderStatus status, 
+                             @Param("query") String query, 
+                             Pageable pageable);
 }

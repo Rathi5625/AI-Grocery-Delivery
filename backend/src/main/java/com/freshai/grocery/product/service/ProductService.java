@@ -49,6 +49,11 @@ public class ProductService {
         return productRepository.findByCategoryIdAndIsActiveTrue(categoryId, pageable).map(this::toDTO);
     }
 
+    public Page<ProductDTO> getProductsByCategorySlug(String slug, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return productRepository.findByCategorySlugAndIsActiveTrue(slug, pageable).map(this::toDTO);
+    }
+
     public Page<ProductDTO> searchProducts(String query, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
         return productRepository.searchProducts(query, pageable).map(this::toDTO);
