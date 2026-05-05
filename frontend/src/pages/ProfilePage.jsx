@@ -9,27 +9,25 @@ import AddressCard from '../components/profile/AddressCard';
 export default function ProfilePage() {
   const { user } = useAuth();
   const hook = useProfile();
-  const { fetchAddresses, fetchOrders } = hook;
+  const { profile, loading } = hook;
 
-  useEffect(() => {
-    fetchAddresses();
-    fetchOrders();
-  }, [fetchAddresses, fetchOrders]);
+  // fetchProfile is already called inside useProfile's own useEffect,
+  // so no need to call fetchAddresses or fetchOrders here.
 
   const firstName = hook.profile?.firstName || user?.firstName || 'there';
 
   return (
     <div className="min-h-screen bg-[#C6C0B9] font-sans flex text-[#422701]">
-      
+
       {/* SIDEBAR */}
       <div className="hidden md:block sticky top-0 h-screen">
-        <Sidebar />
+        <Sidebar profile={hook.profile} />
       </div>
 
       {/* MAIN CONTENT */}
       <div className="flex-1 flex flex-col h-screen overflow-y-auto">
         <div className="w-full max-w-[1200px] mx-auto px-6 md:px-12 py-10 md:py-16">
-          
+
           {/* HEADER */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
             <div>
@@ -40,7 +38,7 @@ export default function ProfilePage() {
                 Manage your organic lifestyle and curated deliveries.
               </p>
             </div>
-            
+
             <div className="bg-[#EBEAE5] px-4.5 py-2.5 rounded-full flex items-center gap-2.5 shadow-sm border border-[#EAE5DF]">
               <div className="w-2 h-2 rounded-full bg-[#D6B588]"></div>
               <span className="text-[11px] font-bold text-[#422701] tracking-[0.1em] uppercase">
@@ -51,7 +49,7 @@ export default function ProfilePage() {
 
           {/* GRID LAYOUT */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            
+
             {/* LEFT COLUMN: PROFILE CARD */}
             <div className="lg:col-span-4 flex flex-col">
               <ProfileCard hook={hook} />

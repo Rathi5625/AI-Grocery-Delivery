@@ -3,13 +3,18 @@ import toast from 'react-hot-toast';
 import API from '../api/axios';
 
 /* ── helpers ── */
-const getProfile    = ()     => API.get('/user/me');
-const patchProfile  = (data) => API.put('/user/update', data);
+const getProfile    = ()     => API.get('/user/profile');
+const patchProfile  = (data) => API.put('/user/profile/update', data);
 const sendOtp       = (p)    => API.post('/user/send-otp', p);
 const verifyOtp     = (p)    => API.post('/user/verify-otp', p);
 const addAddress    = (d)    => API.post('/user/addresses', d);
 const updateAddress = (id,d) => API.put(`/user/addresses/${id}`, d);
 const deleteAddress = (id)   => API.delete(`/user/addresses/${id}`);
+const uploadImage   = (file) => {
+  const fd = new FormData();
+  fd.append('file', file);
+  return API.post('/user/profile/image', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+};
 
 export default function useProfile() {
   const [profile, setProfile]         = useState({ addresses: [], recentOrders: [] });
@@ -29,7 +34,9 @@ export default function useProfile() {
     try {
       setLoading(true);
       const res = await getProfile();
-      setProfile(p => ({ ...p, ...res.data }));
+      // UserProfileController returns ApiResponse<UserProfileDTO> → unwrap .data
+      const data = res.data?.data ?? res.data;
+      setProfile(p => ({ ...p, ...data }));
     } catch (err) {
       toast.error(err?.userMessage || 'Failed to load profile.');
     } finally {
@@ -37,32 +44,9 @@ export default function useProfile() {
     }
   }, []);
 
-  /* ── fetch addresses ── */
-  const fetchAddresses = useCallback(async () => {
-    try {
-      setLoadingAddresses(true);
-      const res = await API.get('/user/addresses');
-      setProfile(p => ({ ...p, addresses: res.data || [] }));
-    } catch (err) {
-      toast.error('Failed to load addresses');
-    } finally {
-      setLoadingAddresses(false);
-    }
-  }, []);
-
-  /* ── fetch orders ── */
-  const fetchOrders = useCallback(async () => {
-    try {
-      setLoadingOrders(true);
-      const res = await API.get('/orders');
-      // page content unwrapping
-      setProfile(p => ({ ...p, recentOrders: res.data?.content || [] }));
-    } catch (err) {
-      toast.error('Failed to load orders');
-    } finally {
-      setLoadingOrders(false);
-    }
-  }, []);
+  /* ── fetch addresses & orders (delegated to fetchProfile) ── */
+  const fetchAddresses = useCallback(() => fetchProfile(), [fetchProfile]);
+  const fetchOrders = useCallback(() => fetchProfile(), [fetchProfile]);
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
@@ -71,7 +55,8 @@ export default function useProfile() {
     try {
       setSaving(true);
       const res = await patchProfile(data);
-      setProfile(res.data);
+      const updated = res.data?.data ?? res.data;
+      setProfile(p => ({ ...p, ...updated }));
       toast.success('Profile updated! ✓');
       return true;
     } catch (err) {
@@ -127,7 +112,8 @@ export default function useProfile() {
         verifiedOtpCode: otpCode,
         otpPurpose,
       });
-      setProfile(res.data);
+      const updated = res.data?.data ?? res.data;
+      setProfile(p => ({ ...p, ...updated }));
       resetOtp();
       toast.success('Updated successfully!');
       return true;
@@ -187,10 +173,27 @@ export default function useProfile() {
     } finally { setSaving(false); }
   };
 
+  /* ── profile image upload ── */
+  const uploadProfileImage = async (file) => {
+    try {
+      setSaving(true);
+      const res = await uploadImage(file);
+      const updated = res.data?.data ?? res.data;
+      setProfile(p => ({ ...p, ...updated }));
+      toast.success('Profile photo updated! ✓');
+      return true;
+    } catch (err) {
+      // Image upload endpoint may not exist yet — store locally as preview
+      toast.error(err?.userMessage || err?.response?.data?.message || 'Image upload not supported yet.');
+      return false;
+    } finally { setSaving(false); }
+  };
+
+
   return {
     profile, loading, loadingAddresses, loadingOrders, saving, fetchProfile, fetchAddresses, fetchOrders, saveBasicInfo,
     otpSent, otpPurpose, otpTarget, otpLoading, otpVerified,
     requestOtp, confirmOtp, saveSensitiveField, resetOtp,
-    addAddr, updateAddr, deleteAddr,
+    addAddr, updateAddr, deleteAddr, uploadProfileImage,
   };
 }
