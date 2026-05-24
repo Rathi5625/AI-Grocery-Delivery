@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.EntityGraph;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -16,8 +17,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     long countByCreatedAtAfter(LocalDateTime since);
 
+    @EntityGraph(attributePaths = {"orderItems"})
     Page<Order> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"orderItems"})
     Optional<Order> findByOrderNumber(String orderNumber);
 
     long countByStatus(Order.OrderStatus status);
@@ -56,10 +59,12 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Object[]> countOrdersByStatus();
 
     // All orders for a user — for order history page
+    @EntityGraph(attributePaths = {"orderItems"})
     @Query("SELECT o FROM Order o WHERE o.user = :user ORDER BY o.createdAt DESC")
     Page<Order> findByUserOrderByCreatedAtDesc(
             @Param("user") com.freshai.grocery.user.entity.User user, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"orderItems"})
     @Query("SELECT o FROM Order o " +
            "WHERE (:status IS NULL OR o.status = :status) " +
            "AND (:query IS NULL OR " +

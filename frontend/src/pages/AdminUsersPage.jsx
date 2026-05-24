@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FiSearch, FiBell, FiPlus, FiFilter, FiChevronDown, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import Sidebar from '../components/admin/Sidebar';
 import UserCard from '../components/admin/UserCard';
@@ -7,87 +8,112 @@ import { adminGetUsers, toggleUserStatus, adminCreateUser, adminUpdateUser } fro
 import toast from 'react-hot-toast';
 
 export default function AdminUsersPage() {
+  const queryClient = useQueryClient();
 
-  const [users, setUsers] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  // Pagination & Search & Filter
+  // ── States ────────────────────────────────────────────────
   const [page, setPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalElements, setTotalElements] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filter, setFilter] = useState('ALL'); // ALL, ACTIVE, INACTIVE
 
   // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [userToEdit, setUserToEdit] = useState(null);
 
-  const fetchUsers = async (currentPage = page, currentSearch = searchTerm, currentFilter = filter) => {
-    try {
-      setIsLoading(true);
-      
+  // Debounce Search
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setPage(0);
+    }, 500);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
+
+  // Users Query
+  const { data: usersData, isLoading } = useQuery({
+    queryKey: ['admin', 'users', { page, searchTerm: debouncedSearch, filter }],
+    queryFn: async () => {
       const params = {
-        page: currentPage,
+        page,
         size: 10
       };
-
-      if (currentSearch.trim()) params.search = currentSearch.trim();
-      if (currentFilter === 'ACTIVE') params.active = true;
-      if (currentFilter === 'INACTIVE') params.active = false;
+      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
+      if (filter === 'ACTIVE') params.active = true;
+      if (filter === 'INACTIVE') params.active = false;
 
       const res = await adminGetUsers(params);
-      
-      // Page response — axios interceptor already unwraps ApiResponse envelope
-      if (res.data?.content) {
-        setUsers(res.data.content);
-        setTotalPages(res.data.totalPages ?? 1);
-        setTotalElements(res.data.totalElements ?? 0);
-      } else {
-        setUsers([]);
+      return res.data ?? {};
+    },
+    placeholderData: (previousData) => previousData,
+    staleTime: 30000,
+  });
+
+  const users = usersData?.content || [];
+  const totalPages = usersData?.totalPages ?? 1;
+  const totalElements = usersData?.totalElements ?? 0;
+
+  // Toggle Status Mutation
+  const toggleStatusMutation = useMutation({
+    mutationFn: async (user) => {
+      const res = await toggleUserStatus(user.id);
+      return res.data;
+    },
+    onMutate: async (user) => {
+      await queryClient.cancelQueries({ queryKey: ['admin', 'users'] });
+      const queryKey = ['admin', 'users', { page, searchTerm: debouncedSearch, filter }];
+      const previousUsers = queryClient.getQueryData(queryKey);
+
+      queryClient.setQueryData(queryKey, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          content: old.content.map(u => u.id === user.id ? { ...u, isActive: !u.isActive } : u),
+        };
+      });
+      return { previousUsers };
+    },
+    onError: (err, user, context) => {
+      if (context?.previousUsers) {
+        queryClient.setQueryData(
+          ['admin', 'users', { page, searchTerm: debouncedSearch, filter }],
+          context.previousUsers
+        );
       }
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to load users');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      fetchUsers(page, searchTerm, filter);
-    }, 500);
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchTerm, filter, page]);
-
-  const handleToggleStatus = async (user) => {
-    try {
-      // Optimistic update
-      setUsers(users.map(u => u.id === user.id ? { ...u, isActive: !u.isActive } : u));
-      await toggleUserStatus(user.id);
-      toast.success(`User ${!user.isActive ? 'activated' : 'deactivated'}`);
-    } catch (err) {
-      console.error(err);
       toast.error('Failed to update status');
-      fetchUsers();
-    }
+    },
+    onSuccess: (data, user) => {
+      toast.success(`User ${!user.isActive ? 'activated' : 'deactivated'}`);
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
+  });
+
+  const handleToggleStatus = (user) => {
+    toggleStatusMutation.mutate(user);
   };
+
+  // Save User Mutation
+  const saveUserMutation = useMutation({
+    mutationFn: async (userData) => {
+      if (userToEdit) {
+        const res = await adminUpdateUser(userToEdit.id, userData);
+        return res.data;
+      } else {
+        const res = await adminCreateUser(userData);
+        return res.data;
+      }
+    },
+    onSuccess: (data, variables) => {
+      toast.success(userToEdit ? 'User updated successfully' : 'User added successfully');
+      setIsModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
+    onError: (err) => {
+      toast.error(userToEdit ? 'Failed to update user' : 'Failed to add user');
+    },
+  });
 
   const handleSave = async (userData) => {
-    try {
-      if (userToEdit) {
-        await adminUpdateUser(userToEdit.id, userData);
-        toast.success('User updated successfully');
-      } else {
-        await adminCreateUser(userData);
-        toast.success('User added successfully');
-      }
-      setIsModalOpen(false);
-      fetchUsers();
-    } catch (err) {
-      console.error(err);
-      toast.error(userToEdit ? 'Failed to update user' : 'Failed to add user');
-    }
+    saveUserMutation.mutate(userData);
   };
 
   const openAddModal = () => {

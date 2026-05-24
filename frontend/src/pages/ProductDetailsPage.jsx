@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -13,29 +14,18 @@ export default function ProductDetailsPage() {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
-  const [product, setProduct] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState(false);
+  const { data: product = null, isLoading: loading, isError: error } = useQuery({
+    queryKey: ['product', id],
+    queryFn: async () => {
+      if (!id) throw new Error('No product ID provided');
+      const res = await getProduct(id);
+      return res.data;
+    },
+    enabled: !!id,
+    staleTime: 30000,
+  });
   const [qty, setQty]         = useState(1);
   const [adding, setAdding]   = useState(false);
-
-  useEffect(() => {
-    if (!id) { setError(true); setLoading(false); return; }
-    const load = async () => {
-      try {
-        setLoading(true);
-        setError(false);
-        const res = await getProduct(id);
-        setProduct(res.data);
-      } catch (err) {
-        console.error('Failed to load product:', err);
-        setError(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, [id]);
 
   const handleAddToCart = async () => {
     if (!isAuthenticated) {

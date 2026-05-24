@@ -8,31 +8,42 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.jpa.repository.EntityGraph;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
+    @EntityGraph(attributePaths = {"category"})
     Page<Product> findByIsActiveTrue(Pageable pageable);
 
+    @EntityGraph(attributePaths = {"category"})
     Page<Product> findByCategoryIdAndIsActiveTrue(Long categoryId, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"category"})
     Page<Product> findByCategorySlugAndIsActiveTrue(String categorySlug, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"category"})
     @Query("SELECT p FROM Product p WHERE p.isActive = true AND (LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(p.description) LIKE LOWER(CONCAT('%', :query, '%')))")
     Page<Product> searchProducts(@Param("query") String query, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"category"})
     List<Product> findByIsFeaturedTrueAndIsActiveTrue();
 
+    @EntityGraph(attributePaths = {"category"})
     List<Product> findByIsOrganicTrueAndIsActiveTrue(Pageable pageable);
 
+    @EntityGraph(attributePaths = {"category"})
     Optional<Product> findBySlug(String slug);
 
+    @EntityGraph(attributePaths = {"category"})
     @Query("SELECT p FROM Product p WHERE p.isActive = true ORDER BY p.sustainabilityScore DESC")
     List<Product> findTopSustainable(Pageable pageable);
 
+    @EntityGraph(attributePaths = {"category"})
     @Query("SELECT p FROM Product p WHERE p.category.id = :categoryId AND p.id != :productId AND p.isActive = true")
     List<Product> findSimilarProducts(@Param("categoryId") Long categoryId, @Param("productId") Long productId,
             Pageable pageable);
 
+    @EntityGraph(attributePaths = {"category"})
     @Query("SELECT p FROM Product p WHERE p.isActive = true AND p.stockQuantity <= :threshold ORDER BY p.stockQuantity ASC")
     List<Product> findLowStockProducts(@Param("threshold") int threshold);
 

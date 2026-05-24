@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FiSearch, FiBell, FiPlus } from 'react-icons/fi';
 import Sidebar from '../components/admin/Sidebar';
 import ProductTable from '../components/admin/ProductTable';
@@ -7,68 +8,85 @@ import { adminGetProducts, adminDeleteProduct, adminCreateProduct, adminUpdatePr
 import toast from 'react-hot-toast';
 
 export default function AdminProductsPage() {
+  const queryClient = useQueryClient();
 
-  const [products, setProducts] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [productToEdit, setProductToEdit] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  const fetchProducts = async (search = '') => {
-    try {
-      setIsLoading(true);
-      const res = await adminGetProducts(search);
-      // Extract array robustly in case API returns paginated data or direct array
-      const data = Array.isArray(res.data?.data) ? res.data.data : Array.isArray(res.data) ? res.data : (res.data?.content || res.data?.data || []);
-      setProducts(data);
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to load products');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // Debounce search input
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
-      fetchProducts(searchTerm);
+      setDebouncedSearch(searchTerm);
     }, 500);
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchTerm]);
+
+  // Query to fetch products
+  const { data: products = [], isLoading } = useQuery({
+    queryKey: ['admin', 'products', { search: debouncedSearch }],
+    queryFn: async () => {
+      const res = await adminGetProducts(debouncedSearch);
+      // Extract array robustly in case API returns paginated data or direct array
+      const data = Array.isArray(res.data?.data) 
+        ? res.data.data 
+        : Array.isArray(res.data) 
+          ? res.data 
+          : (res.data?.content || res.data?.data || []);
+      return data;
+    },
+    staleTime: 30000,
+  });
+
+  // Delete Mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id) => {
+      await adminDeleteProduct(id);
+    },
+    onSuccess: () => {
+      toast.success('Product deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
+    },
+    onError: (err) => {
+      console.error(err);
+      toast.error('Failed to delete product');
+    }
+  });
+
+  // Create/Update Mutation
+  const saveMutation = useMutation({
+    mutationFn: async (productData) => {
+      if (productToEdit) {
+        await adminUpdateProduct(productToEdit.id, productData);
+      } else {
+        await adminCreateProduct(productData);
+      }
+    },
+    onSuccess: () => {
+      toast.success(productToEdit ? 'Product updated successfully' : 'Product added successfully');
+      setIsModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
+    },
+    onError: (err) => {
+      console.error(err);
+      toast.error(productToEdit ? 'Failed to update product' : 'Failed to add product');
+    }
+  });
 
   const handleEdit = (product) => {
     setProductToEdit(product);
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = (id) => {
     if (!window.confirm('Are you sure you want to delete this product?')) return;
-    try {
-      await adminDeleteProduct(id);
-      toast.success('Product deleted successfully');
-      setProducts(products.filter(p => p.id !== id));
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to delete product');
-    }
+    deleteMutation.mutate(id);
   };
 
-  const handleSave = async (productData) => {
-    try {
-      if (productToEdit) {
-        await adminUpdateProduct(productToEdit.id, productData);
-        toast.success('Product updated successfully');
-      } else {
-        await adminCreateProduct(productData);
-        toast.success('Product added successfully');
-      }
-      setIsModalOpen(false);
-      fetchProducts();
-    } catch (err) {
-      console.error(err);
-      toast.error(productToEdit ? 'Failed to update product' : 'Failed to add product');
-    }
+  const handleSave = (productData) => {
+    saveMutation.mutate(productData);
   };
 
   const openAddModal = () => {

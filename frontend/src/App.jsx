@@ -1,5 +1,6 @@
 import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -180,39 +181,52 @@ function AnimatedRoutes() {
 }
 
 // ── Root App ───────────────────────────────────────────────────
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
+
 export default function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <CartProvider>
-          <Toaster
-            position="top-center"
-            gutter={8}
-            toastOptions={{
-              duration: 3000,
-              style: {
-                borderRadius: '16px',
-                background: '#422701',
-                color: '#D6B588',
-                fontSize: '0.95rem',
-                padding: '12px 24px',
-                fontWeight: 600,
-                boxShadow: '0 12px 30px rgba(66, 39, 1, 0.2)',
-                border: '1px solid rgba(214, 181, 136, 0.2)',
-              },
-              success: { 
-                iconTheme: { primary: '#D6B588', secondary: '#422701' },
-                style: { background: '#422701', color: '#D6B588' } 
-              },
-              error: { 
-                iconTheme: { primary: '#ef4444', secondary: '#fff' },
-                style: { background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' } 
-              },
-            }}
-          />
-          <AnimatedRoutes />
-        </CartProvider>
-      </AuthProvider>
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AuthProvider>
+          <CartProvider>
+            <Toaster
+              position="top-center"
+              gutter={8}
+              toastOptions={{
+                duration: 3000,
+                style: {
+                  borderRadius: '16px',
+                  background: '#422701',
+                  color: '#D6B588',
+                  fontSize: '0.95rem',
+                  padding: '12px 24px',
+                  fontWeight: 600,
+                  boxShadow: '0 12px 30px rgba(66, 39, 1, 0.2)',
+                  border: '1px solid rgba(214, 181, 136, 0.2)',
+                },
+                success: { 
+                  iconTheme: { primary: '#D6B588', secondary: '#422701' },
+                  style: { background: '#422701', color: '#D6B588' } 
+                },
+                error: { 
+                  iconTheme: { primary: '#ef4444', secondary: '#fff' },
+                  style: { background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' } 
+                },
+              }}
+            />
+            <AnimatedRoutes />
+          </CartProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }
+

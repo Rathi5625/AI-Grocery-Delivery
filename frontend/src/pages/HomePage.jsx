@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { useCart } from '../context/CartContext';
@@ -11,9 +12,6 @@ import toast from 'react-hot-toast';
 import { FiArrowRight, FiShield, FiTruck, FiZap } from 'react-icons/fi';
 
 export default function HomePage() {
-  const [products, setProducts]     = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading]       = useState(true);
   const { addItem } = useCart();
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -22,27 +20,26 @@ export default function HomePage() {
   const y1 = useTransform(scrollY, [0, 500], [0, 200]);
   const opacity = useTransform(scrollY, [0, 300], [1, 0]);
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const [prodRes, catRes] = await Promise.all([
-          getProducts(0, 4),
-          getCategories()
-        ]);
-        
-        const pageData = prodRes.data;
-        const content = pageData?.content ?? (Array.isArray(pageData) ? pageData : []);
-        setProducts(content.slice(0, 4));
-        setCategories(catRes.data || []);
-      } catch (err) {
-        console.error('Failed to load homepage data', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
+  const { data: products = [], isLoading: productsLoading } = useQuery({
+    queryKey: ['featuredProducts'],
+    queryFn: async () => {
+      const res = await getProducts(0, 4);
+      const pageData = res.data;
+      return (pageData?.content ?? (Array.isArray(pageData) ? pageData : [])).slice(0, 4);
+    },
+    staleTime: 30000,
+  });
+
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const res = await getCategories();
+      return res.data || [];
+    },
+    staleTime: 30000,
+  });
+
+  const loading = productsLoading || categoriesLoading;
 
   const handleAddToCart = async (productId) => {
     if (!isAuthenticated) {

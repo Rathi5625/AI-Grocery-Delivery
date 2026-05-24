@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FiSearch, FiBell, FiFilter, FiDownload, FiBox, FiTrendingDown, FiChevronDown } from 'react-icons/fi';
 import Sidebar from '../components/admin/Sidebar';
 import InventoryTable from '../components/admin/InventoryTable';
@@ -14,131 +15,126 @@ import toast from 'react-hot-toast';
 const LOW_THRESHOLD = 10;
 
 export default function AdminInventoryPage() {
+  const queryClient = useQueryClient();
 
-  // ── Data ──────────────────────────────────────────────────
-  const [inventory, setInventory]       = useState([]);
-  const [isLoading, setIsLoading]       = useState(true);
-  const [statsLoading, setStatsLoading] = useState(true);
-
-  // ── KPI Stats ─────────────────────────────────────────────
-  const [stats, setStats] = useState({
-    totalItems:    '—',
-    lowStockCount: '—',
-    aiSuggestions: '—',
-  });
-
-  // ── Pagination ────────────────────────────────────────────
-  const [page, setPage]                   = useState(0);
-  const [totalPages, setTotalPages]       = useState(1);
-  const [totalElements, setTotalElements] = useState(0);
+  // ── States ────────────────────────────────────────────────
+  const [page, setPage] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [stockFilter, setStockFilter] = useState('ALL'); // ALL | LOW_STOCK | IN_STOCK
+  const [filterOpen, setFilterOpen] = useState(false);
   const PAGE_SIZE = 10;
 
-  // ── Search & Filter ───────────────────────────────────────
-  const [searchTerm, setSearchTerm]   = useState('');
-  const [stockFilter, setStockFilter] = useState('ALL'); // ALL | LOW_STOCK | IN_STOCK
-  const [filterOpen, setFilterOpen]   = useState(false);
-
-  // ── Modal ─────────────────────────────────────────────────
-  const [isModalOpen, setIsModalOpen]   = useState(false);
+  // Modals
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [itemToReorder, setItemToReorder] = useState(null);
 
-  // ── Fetch Stats ───────────────────────────────────────────
-  const fetchStats = useCallback(async () => {
-    try {
-      setStatsLoading(true);
-      const res = await adminGetInventoryStats();
-      // axios interceptor already unwraps the ApiResponse envelope
-      const d   = res.data ?? {};
-      setStats({
-        totalItems:    d.totalItems    ?? '—',
-        lowStockCount: d.lowStockCount ?? '—',
-        aiSuggestions: d.aiSuggestions ?? '—',
-      });
-    } catch (err) {
-      console.error('Stats fetch failed', err);
-    } finally {
-      setStatsLoading(false);
-    }
-  }, []);
-
-  // ── Fetch Inventory ───────────────────────────────────────
-  const fetchInventory = useCallback(async (
-    currentPage   = page,
-    currentSearch = searchTerm,
-    currentFilter = stockFilter,
-  ) => {
-    try {
-      setIsLoading(true);
-      const params = { page: currentPage, size: PAGE_SIZE };
-      if (currentSearch.trim())            params.search      = currentSearch.trim();
-      if (currentFilter !== 'ALL')         params.stockFilter = currentFilter;
-
-      const res  = await adminGetInventory(params);
-      // axios interceptor already unwraps the ApiResponse envelope
-      const body = res.data ?? {};
-
-      if (body.content) {
-        setInventory(body.content);
-        setTotalPages(body.totalPages    ?? 1);
-        setTotalElements(body.totalElements ?? body.content.length);
-      } else {
-        setInventory([]);
-        setTotalPages(1);
-        setTotalElements(0);
-      }
-    } catch (err) {
-      console.error('Inventory fetch failed', err);
-      toast.error('Failed to load inventory');
-      setInventory([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  // ── Initial load ──────────────────────────────────────────
-  useEffect(() => { fetchStats(); }, [fetchStats]);
-
-  // ── Debounced re-fetch on search / filter / page change ───
+  // Debounce search
   useEffect(() => {
-    const t = setTimeout(() => fetchInventory(page, searchTerm, stockFilter), 400);
+    const t = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setPage(0);
+    }, 400);
     return () => clearTimeout(t);
-  }, [searchTerm, stockFilter, page]);
+  }, [searchTerm]);
 
-  // ── Reorder ───────────────────────────────────────────────
+  // Inventory stats query
+  const { data: statsData, isLoading: statsLoading } = useQuery({
+    queryKey: ['admin', 'inventoryStats'],
+    queryFn: async () => {
+      const res = await adminGetInventoryStats();
+      return res.data ?? {};
+    },
+    staleTime: 30000,
+  });
+
+  const stats = {
+    totalItems: statsData?.totalItems ?? '—',
+    lowStockCount: statsData?.lowStockCount ?? '—',
+    aiSuggestions: statsData?.aiSuggestions ?? '—',
+  };
+
+  // Inventory list query
+  const { data: inventoryData, isLoading } = useQuery({
+    queryKey: ['admin', 'inventory', { page, searchTerm: debouncedSearch, stockFilter }],
+    queryFn: async () => {
+      const params = { page, size: PAGE_SIZE };
+      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
+      if (stockFilter !== 'ALL') params.stockFilter = stockFilter;
+
+      const res = await adminGetInventory(params);
+      return res.data ?? {};
+    },
+    placeholderData: (previousData) => previousData,
+    staleTime: 30000,
+  });
+
+  const inventory = inventoryData?.content || [];
+  const totalPages = inventoryData?.totalPages ?? 1;
+  const totalElements = inventoryData?.totalElements ?? 0;
+
+  // Reorder mutation
+  const reorderMutation = useMutation({
+    mutationFn: async ({ itemId, quantity }) => {
+      const res = await adminReorderProduct(itemId, quantity);
+      return res.data;
+    },
+    onMutate: async ({ itemId, quantity }) => {
+      await queryClient.cancelQueries({ queryKey: ['admin', 'inventory'] });
+      const queryKey = ['admin', 'inventory', { page, searchTerm: debouncedSearch, stockFilter }];
+      const previousInventory = queryClient.getQueryData(queryKey);
+
+      queryClient.setQueryData(queryKey, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          content: old.content.map(item =>
+            item.id === itemId
+              ? {
+                  ...item,
+                  stock: item.stock + quantity,
+                  stockLevel: item.stock + quantity,
+                  isLowStock: (item.stock + quantity) <= LOW_THRESHOLD,
+                }
+              : item
+          ),
+        };
+      });
+      return { previousInventory };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousInventory) {
+        queryClient.setQueryData(
+          ['admin', 'inventory', { page, searchTerm: debouncedSearch, stockFilter }],
+          context.previousInventory
+        );
+      }
+      toast.error('Failed to reorder stock');
+    },
+    onSuccess: () => {
+      toast.success('Stock reordered successfully!');
+      setIsModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['admin', 'inventoryStats'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'inventory'] });
+    },
+  });
+
   const handleReorderClick = (item) => {
     setItemToReorder(item);
     setIsModalOpen(true);
   };
 
-  const handleConfirmReorder = async (itemId, quantity) => {
-    // Optimistic update
-    setInventory(prev =>
-      prev.map(item =>
-        item.id === itemId
-          ? { ...item, stock: item.stock + quantity, stockLevel: item.stock + quantity, isLowStock: (item.stock + quantity) <= LOW_THRESHOLD }
-          : item
-      )
-    );
-    try {
-      await adminReorderProduct(itemId, quantity);
-      toast.success('Stock reordered successfully!');
-      setIsModalOpen(false);
-      // Refresh stats after reorder
-      fetchStats();
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to reorder stock');
-      fetchInventory(page, searchTerm, stockFilter); // revert
-    }
+  const handleConfirmReorder = (itemId, quantity) => {
+    reorderMutation.mutate({ itemId, quantity });
   };
 
-  // ── Export CSV ────────────────────────────────────────────
+  // Export CSV
   const handleExport = async () => {
     try {
-      const res  = await adminExportInventory();
-      const url  = window.URL.createObjectURL(new Blob([res.data], { type: 'text/csv' }));
+      const res = await adminExportInventory();
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'text/csv' }));
       const link = document.createElement('a');
-      link.href  = url;
+      link.href = url;
       link.setAttribute('download', 'inventory.csv');
       document.body.appendChild(link);
       link.click();

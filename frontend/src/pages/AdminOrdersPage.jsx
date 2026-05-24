@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FiSearch, FiBell, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import Sidebar from '../components/admin/Sidebar';
 import OrderTable from '../components/admin/OrderTable';
@@ -6,109 +7,98 @@ import { adminGetOrders, adminGetOrderStats, adminPatchStatus } from '../api/adm
 import toast from 'react-hot-toast';
 
 export default function AdminOrdersPage() {
+  const queryClient = useQueryClient();
 
-  // ── Data ──────────────────────────────────────────────────
-  const [orders, setOrders]             = useState([]);
-  const [isLoading, setIsLoading]       = useState(true);
-  const [statsLoading, setStatsLoading] = useState(true);
-
-  // ── Stats KPI ─────────────────────────────────────────────
-  const [stats, setStats] = useState({
-    todayOrders:    '—',
-    pendingOrders:  '—',
-    aiCurationRate: '—',
-  });
-
-  // ── Pagination ────────────────────────────────────────────
-  const [page, setPage]               = useState(0);
-  const [totalPages, setTotalPages]   = useState(1);
-  const [totalElements, setTotalElements] = useState(0);
+  // ── States ────────────────────────────────────────────────
+  const [page, setPage] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [filter, setFilter] = useState('ALL'); // ALL | PENDING | DELIVERED
   const PAGE_SIZE = 10;
 
-  // ── Search & Filter ───────────────────────────────────────
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filter, setFilter]         = useState('ALL'); // ALL | PENDING | DELIVERED
-
-  // ── Fetch Stats ───────────────────────────────────────────
-  const fetchStats = useCallback(async () => {
-    try {
-      setStatsLoading(true);
-      const res = await adminGetOrderStats();
-      // axios interceptor already unwraps the ApiResponse envelope
-      const d   = res.data ?? {};
-      setStats({
-        todayOrders:    d.todayOrders    ?? '—',
-        pendingOrders:  d.pendingOrders  ?? '—',
-        aiCurationRate: d.aiCurationRate != null ? `${d.aiCurationRate}%` : '—',
-      });
-    } catch (err) {
-      console.error('Failed to load order stats', err);
-    } finally {
-      setStatsLoading(false);
-    }
-  }, []);
-
-  // ── Fetch Orders ──────────────────────────────────────────
-  const fetchOrders = useCallback(async (
-    currentPage   = page,
-    currentSearch = searchTerm,
-    currentFilter = filter,
-  ) => {
-    try {
-      setIsLoading(true);
-      const params = { page: currentPage, size: PAGE_SIZE };
-      if (currentSearch.trim())            params.search = currentSearch.trim();
-      if (currentFilter !== 'ALL')         params.status = currentFilter;
-
-      const res  = await adminGetOrders(params);
-      // axios interceptor already unwraps the ApiResponse envelope
-      const body = res.data ?? {};
-
-      if (body.content) {
-        setOrders(body.content);
-        setTotalPages(body.totalPages   ?? 1);
-        setTotalElements(body.totalElements ?? body.content.length);
-      } else {
-        setOrders([]);
-        setTotalPages(1);
-        setTotalElements(0);
-      }
-    } catch (err) {
-      console.error('Failed to load orders', err);
-      toast.error('Failed to load orders');
-      setOrders([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []); // intentionally empty — caller passes current values
-
-  // ── Initial load ──────────────────────────────────────────
+  // ── Debounce Search ───────────────────────────────────────
   useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
-
-  // ── Debounced re-fetch on search/filter/page change ───────
-  useEffect(() => {
-    const t = setTimeout(() => fetchOrders(page, searchTerm, filter), 450);
+    const t = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setPage(0);
+    }, 450);
     return () => clearTimeout(t);
-  }, [searchTerm, filter, page]);
+  }, [searchTerm]);
 
-  // ── Status change (optimistic) ────────────────────────────
-  const handleStatusChange = async (orderId, newStatus) => {
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
-    try {
-      await adminPatchStatus(orderId, newStatus);
-      toast.success(`Order status → ${newStatus}`);
-      // Refresh stats after status change
-      fetchStats();
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to update order status');
-      fetchOrders(page, searchTerm, filter); // revert
-    }
+  // ── Stats KPI Query ────────────────────────────────────────
+  const { data: statsData, isLoading: statsLoading } = useQuery({
+    queryKey: ['admin', 'orderStats'],
+    queryFn: async () => {
+      const res = await adminGetOrderStats();
+      return res.data ?? {};
+    },
+    staleTime: 30000,
+  });
+
+  const stats = {
+    todayOrders: statsData?.todayOrders ?? '—',
+    pendingOrders: statsData?.pendingOrders ?? '—',
+    aiCurationRate: statsData?.aiCurationRate != null ? `${statsData.aiCurationRate}%` : '—',
   };
 
-  // ── Filter handler ────────────────────────────────────────
+  // ── Orders Query ──────────────────────────────────────────
+  const { data: ordersData, isLoading } = useQuery({
+    queryKey: ['admin', 'orders', { page, searchTerm: debouncedSearch, filter }],
+    queryFn: async () => {
+      const params = { page, size: PAGE_SIZE };
+      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
+      if (filter !== 'ALL') params.status = filter;
+      const res = await adminGetOrders(params);
+      return res.data ?? {};
+    },
+    placeholderData: (previousData) => previousData,
+    staleTime: 30000,
+  });
+
+  const orders = ordersData?.content || [];
+  const totalPages = ordersData?.totalPages ?? 1;
+  const totalElements = ordersData?.totalElements ?? 0;
+
+  // ── Status mutation ───────────────────────────────────────
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ orderId, newStatus }) => {
+      const res = await adminPatchStatus(orderId, newStatus);
+      return res.data;
+    },
+    onMutate: async ({ orderId, newStatus }) => {
+      await queryClient.cancelQueries({ queryKey: ['admin', 'orders'] });
+      const queryKey = ['admin', 'orders', { page, searchTerm: debouncedSearch, filter }];
+      const previousOrders = queryClient.getQueryData(queryKey);
+      
+      queryClient.setQueryData(queryKey, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          content: old.content.map(o => o.id === orderId ? { ...o, status: newStatus } : o),
+        };
+      });
+      return { previousOrders };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousOrders) {
+        queryClient.setQueryData(
+          ['admin', 'orders', { page, searchTerm: debouncedSearch, filter }],
+          context.previousOrders
+        );
+      }
+      toast.error('Failed to update order status');
+    },
+    onSuccess: (data, variables) => {
+      toast.success(`Order status → ${variables.newStatus}`);
+      queryClient.invalidateQueries({ queryKey: ['admin', 'orderStats'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
+    },
+  });
+
+  const handleStatusChange = (orderId, newStatus) => {
+    updateStatusMutation.mutate({ orderId, newStatus });
+  };
+
   const handleFilter = (newFilter) => {
     setFilter(newFilter);
     setPage(0);

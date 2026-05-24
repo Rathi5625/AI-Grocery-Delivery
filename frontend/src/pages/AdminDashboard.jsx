@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { FiSearch, FiBell, FiCalendar } from 'react-icons/fi';
 import { FiUsers, FiFileText, FiBox, FiDollarSign } from 'react-icons/fi';
 import Sidebar from '../components/admin/Sidebar';
@@ -10,66 +11,55 @@ import { staggerContainer, fadeInScale } from '../utils/animations';
 import { DashboardSkeleton } from '../components/common/Skeleton';
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState({
-    totalUsers: 0,
-    totalOrders: 0,
-    totalProducts: 0,
-    revenue: 0,
+  const { data: stats, isLoading: statsLoading, error: statsError } = useQuery({
+    queryKey: ['admin', 'stats'],
+    queryFn: async () => {
+      const res = await getDashboardStats();
+      const data = res.data;
+      return {
+        totalUsers: data.totalUsers || 0,
+        totalOrders: data.totalOrders || 0,
+        totalProducts: data.totalProducts || 0,
+        revenue: data.totalRevenue || 0,
+      };
+    },
+    staleTime: 30000,
   });
-  
-  const [revenueData, setRevenueData] = useState([]);
-  const [densityData, setDensityData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const [dashRes, revRes, densityRes] = await Promise.all([
-          getDashboardStats(),
-          getRevenueStats('7days'),
-          getOrdersDensity()
-        ]);
-        
-        const data = dashRes.data?.data || dashRes.data;
-        setStats({
-          totalUsers: data.totalUsers || 0,
-          totalOrders: data.totalOrders || 0,
-          totalProducts: data.totalProducts || 0,
-          revenue: data.totalRevenue || 0,
-        });
-
-        const revData = revRes.data?.data || revRes.data;
-        const denData = densityRes.data?.data || densityRes.data;
-
-        // Process revenue dates to short days like "Mon", "Tue"
-        const formattedRev = revData.map(item => ({
-          day: new Date(item.date).toLocaleDateString('en-US', { weekday: 'short' }),
-          value: item.revenue,
-          color: '#E5DFD6'
-        }));
-        
-        // Mark the last item as the highlight color
-        if (formattedRev.length > 0) {
-          formattedRev[formattedRev.length - 1].color = '#705E46';
-          if (formattedRev.length > 1) {
-            formattedRev[formattedRev.length - 2].color = '#D6B588';
-          }
+  const { data: revenueData = [], isLoading: revenueLoading, error: revenueError } = useQuery({
+    queryKey: ['admin', 'revenue', '7days'],
+    queryFn: async () => {
+      const res = await getRevenueStats('7days');
+      const revData = res.data || [];
+      const formattedRev = revData.map(item => ({
+        day: new Date(item.date).toLocaleDateString('en-US', { weekday: 'short' }),
+        value: item.revenue,
+        color: '#E5DFD6'
+      }));
+      
+      if (formattedRev.length > 0) {
+        formattedRev[formattedRev.length - 1].color = '#705E46';
+        if (formattedRev.length > 1) {
+          formattedRev[formattedRev.length - 2].color = '#D6B588';
         }
-        
-        setRevenueData(formattedRev);
-        setDensityData(denData.map((d, i) => ({ time: String(i + 1), value: d.value })));
-        
-      } catch (err) {
-        console.error('Failed to fetch dashboard stats', err);
-        setError('Failed to load dashboard data.');
-      } finally {
-        setLoading(false);
       }
-    };
+      return formattedRev;
+    },
+    staleTime: 30000,
+  });
 
-    fetchStats();
-  }, []);
+  const { data: densityData = [], isLoading: densityLoading, error: densityError } = useQuery({
+    queryKey: ['admin', 'density'],
+    queryFn: async () => {
+      const res = await getOrdersDensity();
+      const denData = res.data || [];
+      return denData.map((d, i) => ({ time: String(i + 1), value: d.value }));
+    },
+    staleTime: 30000,
+  });
+
+  const loading = statsLoading || revenueLoading || densityLoading;
+  const error = (statsError || revenueError || densityError) ? 'Failed to load dashboard data.' : null;
 
   return (
     <div className="min-h-screen bg-[#FAF7F2] font-sans flex">

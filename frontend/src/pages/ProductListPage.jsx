@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useSearchParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getProducts, searchProducts, getCategories } from '../api/productApi';
@@ -13,12 +14,7 @@ import { ProductSkeleton } from '../components/common/Skeleton';
 import { staggerContainer, fadeInScale } from '../utils/animations';
 
 export default function ProductListPage() {
-  const [products, setProducts]     = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading]       = useState(true);
   const [page, setPage]             = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalElements, setTotalElements] = useState(0);
   const [sortBy, setSortBy]         = useState('name');
   const [direction, setDirection]   = useState('asc');
   const [selectedCat, setSelectedCat] = useState(null);
@@ -37,12 +33,21 @@ export default function ProductListPage() {
     else setSelectedCat(null);
   }, [catParam]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const catRes = await getCategories();
-      setCategories(Array.isArray(catRes.data) ? catRes.data : []);
+  // Fetch categories query
+  const { data: categoriesData } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const res = await getCategories();
+      return Array.isArray(res.data) ? res.data : [];
+    },
+    staleTime: 60000,
+  });
+  const categories = categoriesData ?? [];
 
+  // Fetch products query
+  const { data: pageData, isFetching: productsFetching, isLoading: productsLoading, error } = useQuery({
+    queryKey: ['products', { page, query, selectedCat, sortBy, direction, organicOnly }],
+    queryFn: async () => {
       let res;
       if (query) {
         res = await searchProducts(query, page, 16);
@@ -51,22 +56,24 @@ export default function ProductListPage() {
       } else {
         res = await getProducts(page, 16, sortBy, direction);
       }
+      return res.data;
+    },
+    placeholderData: (prev) => prev,
+    staleTime: 30000,
+  });
 
-      const pageData = res.data;
-      let content    = pageData?.content ?? (Array.isArray(pageData) ? pageData : []);
-      if (organicOnly) content = content.filter(p => p.isOrganic);
-      setProducts(content);
-      setTotalPages(pageData?.totalPages ?? 0);
-      setTotalElements(pageData?.totalElements ?? content.length);
-    } catch (err) {
-      console.error('Products load error:', err);
-      toast.error(err.userMessage || 'Could not load products — is the backend running?');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (error) {
+      toast.error(error.userMessage || 'Could not load products — is the backend running?');
     }
-  }, [page, query, sortBy, direction, selectedCat, organicOnly]);
+  }, [error]);
 
-  useEffect(() => { load(); }, [load]);
+  const products = pageData?.content 
+    ? (organicOnly ? pageData.content.filter(p => p.isOrganic) : pageData.content)
+    : [];
+  const totalPages = pageData?.totalPages ?? 0;
+  const totalElements = pageData?.totalElements ?? products.length;
+  const loading = productsLoading || productsFetching;
 
   const handleAdd = async (productId) => {
     if (!isAuthenticated) { toast.error('Please sign in first'); return; }

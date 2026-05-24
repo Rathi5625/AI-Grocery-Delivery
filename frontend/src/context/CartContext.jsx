@@ -1,58 +1,87 @@
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as cartApi from '../api/cartApi';
 import { useAuth } from './AuthContext';
 
 const CartContext = createContext(null);
 
 export function CartProvider({ children }) {
-    const [cart, setCart]       = useState({ items: [], totalAmount: 0, itemCount: 0 });
-    const [loading, setLoading] = useState(false);
-    const { isAuthenticated }   = useAuth();
+    const { isAuthenticated } = useAuth();
+    const queryClient = useQueryClient();
 
-    /**
-     * res.data is already the unwrapped CartDTO from ApiResponse
-     * CartDTO: { id, totalAmount, items: CartItemDTO[], itemCount }
-     */
-    const fetchCart = useCallback(async () => {
-        if (!isAuthenticated) return;
-        setLoading(true);
-        try {
+    // Query for fetching cart
+    const { data: cartData, isFetching: loading } = useQuery({
+        queryKey: ['cart'],
+        queryFn: async () => {
             const res = await cartApi.getCart();
-            setCart(res.data ?? { items: [], totalAmount: 0, itemCount: 0 });
-        } catch (err) {
-            console.error('Failed to fetch cart:', err);
-        } finally {
-            setLoading(false);
-        }
-    }, [isAuthenticated]);
+            return res.data ?? { items: [], totalAmount: 0, itemCount: 0 };
+        },
+        enabled: isAuthenticated,
+        staleTime: 0,
+    });
 
-    // Auto-fetch on login
-    useEffect(() => {
-        if (isAuthenticated) fetchCart();
-        else setCart({ items: [], totalAmount: 0, itemCount: 0 });
-    }, [isAuthenticated, fetchCart]);
+    const cart = cartData ?? { items: [], totalAmount: 0, itemCount: 0 };
+
+    // Wrapper for compatibility with pages that call fetchCart
+    const fetchCart = useCallback(async () => {
+        if (isAuthenticated) {
+            await queryClient.refetchQueries({ queryKey: ['cart'] });
+        }
+    }, [isAuthenticated, queryClient]);
+
+    // Mutations for cart operations
+    const addItemMutation = useMutation({
+        mutationFn: async ({ productId, quantity }) => {
+            const res = await cartApi.addToCart(productId, quantity);
+            return res.data;
+        },
+        onSuccess: (data) => {
+            queryClient.setQueryData(['cart'], data);
+        }
+    });
+
+    const updateItemMutation = useMutation({
+        mutationFn: async ({ itemId, quantity }) => {
+            const res = await cartApi.updateCartItem(itemId, quantity);
+            return res.data;
+        },
+        onSuccess: (data) => {
+            queryClient.setQueryData(['cart'], data);
+        }
+    });
+
+    const removeItemMutation = useMutation({
+        mutationFn: async (itemId) => {
+            await cartApi.removeCartItem(itemId);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['cart'] });
+        }
+    });
+
+    const clearCartMutation = useMutation({
+        mutationFn: async () => {
+            await cartApi.clearCart();
+        },
+        onSuccess: () => {
+            queryClient.setQueryData(['cart'], { items: [], totalAmount: 0, itemCount: 0 });
+        }
+    });
 
     const addItem = async (productId, quantity = 1) => {
-        const res = await cartApi.addToCart(productId, quantity);
-        setCart(res.data);
-        return res.data;
+        return addItemMutation.mutateAsync({ productId, quantity });
     };
 
     const updateItem = async (itemId, quantity) => {
-        const res = await cartApi.updateCartItem(itemId, quantity);
-        setCart(res.data);
-        return res.data;
+        return updateItemMutation.mutateAsync({ itemId, quantity });
     };
 
     const removeItem = async (itemId) => {
-        await cartApi.removeCartItem(itemId);
-        // Refresh to get accurate totals from server
-        await fetchCart();
+        return removeItemMutation.mutateAsync(itemId);
     };
 
     const clear = async () => {
-        await cartApi.clearCart();
-        setCart({ items: [], totalAmount: 0, itemCount: 0 });
+        return clearCartMutation.mutateAsync();
     };
 
     /** Computed helpers */
@@ -77,3 +106,4 @@ export function CartProvider({ children }) {
 }
 
 export const useCart = () => useContext(CartContext);
+

@@ -1,30 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { FiShoppingCart, FiUser, FiPackage } from 'react-icons/fi';
 import { getOrders } from '../api/orderApi';
 import OrderCard from '../components/order/OrderCard';
 
 export default function OrderHistoryPage() {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { data: orders = [], isLoading: loading, error } = useQuery({
+    queryKey: ['orders'],
+    queryFn: async () => {
+      const res = await getOrders(0, 50); // Fetch up to 50 recent orders
+      const data = res.data;
+      return data?.content ?? (Array.isArray(data) ? data : []);
+    },
+    staleTime: 30000,
+  });
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await getOrders(0, 50); // Fetch up to 50 recent orders
-        const data = res.data;
-        const content = data?.content ?? (Array.isArray(data) ? data : []);
-        setOrders(content);
-      } catch (err) {
-        console.error('Failed to load orders:', err);
-        setError('Failed to load your order history. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
+  const errorMessage = error ? 'Failed to load your order history. Please try again later.' : null;
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] font-sans">
@@ -63,9 +55,9 @@ export default function OrderHistoryPage() {
               <div key={i} className="animate-pulse bg-[#EAE5DF] rounded-2xl h-80" />
             ))}
           </div>
-        ) : error ? (
+        ) : errorMessage ? (
           <div className="text-center py-20 bg-[#F2ECE4] rounded-2xl border border-[#C6C0B9]/30">
-            <p className="text-red-500 font-medium">{error}</p>
+            <p className="text-red-500 font-medium">{errorMessage}</p>
           </div>
         ) : orders.length === 0 ? (
           <div className="text-center py-24 bg-[#F2ECE4] rounded-2xl border border-[#C6C0B9]/30">

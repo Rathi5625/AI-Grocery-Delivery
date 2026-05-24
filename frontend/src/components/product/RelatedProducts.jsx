@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import ProductCard from './ProductCard';
 import { getSimilarProducts, getProducts } from '../../api/productApi';
@@ -8,39 +9,36 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 const RelatedProducts = ({ productId }) => {
-  const [related, setRelated] = useState([]);
   const { addItem } = useCart();
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        // Try the similar endpoint first, fall back to regular product list
-        let products = [];
-        if (productId) {
-          try {
-            const res = await getSimilarProducts(productId);
-            const data = res.data;
-            products = data?.content ?? (Array.isArray(data) ? data : []);
-          } catch {
-            // similar endpoint not available, fallback
-          }
-        }
-        if (products.length === 0) {
-          const res = await getProducts(0, 4, 'name', 'asc');
+  const { data: related = [], isLoading } = useQuery({
+    queryKey: ['relatedProducts', productId],
+    queryFn: async () => {
+      let products = [];
+      if (productId) {
+        try {
+          const res = await getSimilarProducts(productId);
           const data = res.data;
-          products = (data?.content ?? (Array.isArray(data) ? data : [])).slice(0, 4);
-          // Exclude current product
-          if (productId) products = products.filter(p => String(p.id) !== String(productId)).slice(0, 4);
+          products = data?.content ?? (Array.isArray(data) ? data : []);
+        } catch {
+          // similar endpoint not available, fallback
         }
-        setRelated(products.slice(0, 4));
-      } catch (err) {
-        console.error('Failed to load related products:', err);
       }
-    };
-    load();
-  }, [productId]);
+      if (products.length === 0) {
+        const res = await getProducts(0, 4, 'name', 'asc');
+        const data = res.data;
+        products = data?.content ?? (Array.isArray(data) ? data : []);
+        // Exclude current product
+        if (productId) {
+          products = products.filter(p => String(p.id) !== String(productId));
+        }
+      }
+      return products.slice(0, 4);
+    },
+    staleTime: 30000,
+  });
 
   const handleAdd = async (id) => {
     if (!isAuthenticated) {
@@ -56,7 +54,7 @@ const RelatedProducts = ({ productId }) => {
     }
   };
 
-  if (related.length === 0) return null;
+  if (isLoading || related.length === 0) return null;
 
   return (
     <div className="w-full mt-16 pt-12 border-t border-[#C6C0B9]/40">

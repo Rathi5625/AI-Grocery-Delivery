@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { FiArrowLeft, FiPackage, FiMapPin, FiCreditCard } from 'react-icons/fi';
 import { getOrder } from '../api/orderApi';
 import toast from 'react-hot-toast';
@@ -7,23 +8,23 @@ import toast from 'react-hot-toast';
 export default function OrderDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [order, setOrder] = useState(null);
-  const [loading, setLoading] = useState(true);
+
+  const { data: order, isLoading: loading, isError } = useQuery({
+    queryKey: ['order', id],
+    queryFn: async () => {
+      const res = await getOrder(id);
+      return res.data;
+    },
+    enabled: !!id,
+    staleTime: 30000,
+  });
 
   useEffect(() => {
-    const fetchOrder = async () => {
-      try {
-        const res = await getOrder(id);
-        setOrder(res.data);
-      } catch (err) {
-        toast.error('Failed to load order details.');
-        navigate('/orders');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchOrder();
-  }, [id, navigate]);
+    if (isError) {
+      toast.error('Failed to load order details.');
+      navigate('/orders');
+    }
+  }, [isError, navigate]);
 
   if (loading) {
     return (
